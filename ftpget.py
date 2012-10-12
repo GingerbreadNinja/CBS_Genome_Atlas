@@ -9,6 +9,10 @@ import socket
 import sys
 from ftplib import FTP
 
+def getNCBIProkaryotesIndex():
+    getFile('ftp.ncbi.nlm.nih.gov', '', '', '', 180, 'genomes/GENOME_REPORTS/', 'prokaryotes.txt', 'ncbi/prokaryotes.txt')
+    return open('ncbi/prokaryotes.txt')
+
 def getFile(host, user, passwd, acct, timeout, dirname, filename, save_as):
     """
     Gets a single file from the ftp host specified, and saves it as 'saveas'
