@@ -1,8 +1,8 @@
-DROP DATABASE IF EXISTS cbs_genome_atlas_dev;
+-- DROP DATABASE IF EXISTS cbs_genome_atlas_dev;
 
-CREATE DATABASE cbs_genome_atlas_dev;
+-- CREATE DATABASE steve_private;
 
-USE cbs_genome_atlas_dev;
+USE steve_private;
 
 CREATE TABLE taxonomy
 (
