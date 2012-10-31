@@ -1,0 +1,29 @@
+
+A makefile is a job. For example single_genome does all the computation necessary to process a single genome.
+Jobs are composed of multiple steps, called jobsteps in most of the code.  
+Each of the directives or recipes in the makefile are jobsteps.
+
+
+How to add a new step to a job:
+
+- add a row to the table jobstep 
+  insert into jobstep (name, description) values ('trnascan', 'Runs trnascan-1.4 to predict tRNA structures.');
+
+- add a row to the job - jobstep join table
+  insert into job_jobsteps(job_id, jobstep_id) values (1, 3);
+
+- then add a directive to the makefile.  I like to break this up into two logical parts.  First, a directive for the name of the jobstep itself, with the requirement being the output of the command.  Next, a directive for the output itself, with the requirement of any of the inputs.  This way you can scan through the file and quickly see the output of each jobstep, and it will be easier to reuse the parts.  
+  
+trnascan: $(ACCESSION).trna
+
+$(ACCESSION).trna: $(ACCESSION).fna
+    @echo "running trnascan"
+    $(eval LOGID=$(shell python db_log.py --start --job=$(JOB) --jobstep=trnascan --accession=$(ACCESSION)))
+    /home/people/helen/bin/trnscan-1.4 -o $(GENOME_LOC)$(ACCESSION).trna $(GENOME_LOC)$(ACCESSION).fna
+    python db_log.py --finish --logid=$(LOGID)
+
+- then add your new directive to the job directive as appropriate:
+
+all: single_genome
+
+single_genome: convert_to_fasta trnascan

@@ -1,0 +1,17 @@
+
+date should be datetime in log table in database
+
+test log insertion script
+write tests
+
+Makefile needs to be tested
+
+add config for genome location on filesystem
+
+then run for the two genomes
+
+
+check in
+
+db updates
+
