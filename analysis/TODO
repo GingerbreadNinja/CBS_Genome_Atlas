@@ -6,3 +6,6 @@ db updates moved to main db scripts
 
 trnascan-stats needs to be written
 
+
+using full version of accession number everywhere, but it does not have the dot.  is this a problem?
+

@@ -73,8 +73,9 @@ insert into job_jobsteps( job_id, jobstep_id) values (1, 3);
 insert into job_jobsteps( job_id, jobstep_id) values (1, 4);
 
 
-create table tRNA
+create table trna
 (
+    id INTEGER PRIMARY KEY AUTO_INCREMENT,
     accession varchar(255),
     FOREIGN KEY (accession) REFERENCES replicon (accession),
     start_location INTEGER NOT NULL,

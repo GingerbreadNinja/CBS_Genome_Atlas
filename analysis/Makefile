@@ -2,7 +2,7 @@
 JOB = single_genome
 
 # location that the genomes and outputfile are stored in
-GENOME_DIR = ../genomes/
+GENOME_DIR = ../../genomes/
 
 # location that executables are stored in
 BIN_DIR = ./
@@ -25,7 +25,6 @@ convert_to_fasta: $(ACCESSION).fna
 $(ACCESSION).fna:
 	@echo "running convert_to_fasta"
 	$(eval LOGID=$(shell python db_log.py --start --job=$(JOB) --jobstep=convert_to_fasta --accession=$(ACCESSION)))
-	@echo LOGID is set to $(LOGID)
 	python convert_gbk_fasta.py -i $(GENOME_DIR)$(ACCESSION).gbk -o $(GENOME_DIR)$(ACCESSION).fna
 	python db_log.py --finish --logid=$(LOGID)
 
