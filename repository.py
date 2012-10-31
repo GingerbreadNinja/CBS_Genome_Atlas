@@ -214,6 +214,8 @@ class SQLite3Repository(object):
         reverse_tuples = map(lambda bp_taxon: (bp_taxon[1],bp_taxon[0]), bp_taxons)
         self.curs.executemany("""UPDATE bioproject SET taxon_id=? WHERE bioproject_id=?""", reverse_tuples)
         self.conn.commit()
+
+
         
 def main():
     """
@@ -221,8 +223,7 @@ def main():
     """
     #import ftpget
     from ncbi import bioproject
-    ftpget.getFile('ftp.ncbi.nlm.nih.gov', '', '', '', 180, 'genomes/GENOME_REPORTS/', 'prokaryotes.txt', 'ncbi/prokaryotes.txt')
-    csv_bioproject_stream = open('ncbi/prokaryotes.txt')
+    csv_bioproject_stream = ftpget.getNCBIProkaryotesIndex();
     bioprojects = bioproject.CSVBioProjectParser.csv_parse_stream(csv_bioproject_stream)
     csv_bioproject_stream.close()
     
