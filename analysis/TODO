@@ -1,17 +1,8 @@
 
-date should be datetime in log table in database
+write tests for Makefile
+write tests for log insertion script
 
-test log insertion script
-write tests
+db updates moved to main db scripts
 
-Makefile needs to be tested
-
-add config for genome location on filesystem
-
-then run for the two genomes
-
-
-check in
-
-db updates
+trnascan-stats needs to be written
 
