@@ -1,7 +1,4 @@
 
-+ accession number needs to have version stripped in all code
-+ trnascan-stats needs to be written
-
 jobsteps should update database with errors when they error out!
 
 check everywhere that accession really is just the accession number and does not contain the version also
