@@ -8,7 +8,7 @@ import os;
 debug = 0
 
 def usage():
-    sys.stderr.write('usage: ' + sys.argv[0] + ' CP000230.trna');
+    sys.stderr.write('usage: ' + sys.argv[0] + ' CP000020_2.trna');
     sys.exit(2)
 
 def db_connect():
@@ -17,19 +17,20 @@ def db_connect():
     cur = db.cursor()
     return cur
 
-def write_stats(accession, start_location, end_location, amino_acid, anti_codon, sequence):
+def write_stats(accession, version, start_location, end_location, amino_acid, anti_codon, sequence):
     cur = db_connect()
     #TODO the database should probably enforce the non duplicate rows as well
-    row = cur.execute("""SELECT * FROM trna WHERE accession = %s and start_location = %s and end_location = %s""", (accession, start_location, end_location))
+    row = cur.execute("""SELECT * FROM trna WHERE accession = %s and version = %s and start_location = %s and end_location = %s""", (accession, version, start_location, end_location))
     rows = cur.fetchall()
     if rows:
-        cur.execute("""UPDATE trna SET amino_acid = %s, anti_codon = %s, sequence = %s WHERE accession = %s and start_location = %s and end_location = %s""", (amino_acid, anti_codon, sequence, accession, start_location, end_location))
+        cur.execute("""UPDATE trna SET amino_acid = %s, anti_codon = %s, sequence = %s WHERE accession = %s and version = %s and start_location = %s and end_location = %s""", (amino_acid, anti_codon, sequence, accession, version, start_location, end_location))
     else:
-        cur.execute("""INSERT INTO trna (accession, start_location, end_location, amino_acid, anti_codon, sequence) VALUES (%s, %s, %s, %s, %s, %s)""", (accession, start_location, end_location, amino_acid, anti_codon, sequence))
+        cur.execute("""INSERT INTO trna (accession, version, start_location, end_location, amino_acid, anti_codon, sequence) VALUES (%s, %s, %s, %s, %s, %s, %s)""", (accession, version, start_location, end_location, amino_acid, anti_codon, sequence))
 
 def parse_predictions(lines, filename):
 
     accession = ""
+    version = ""
     start_location = ""
     end_location = ""
     amino_acid = ""
@@ -45,10 +46,12 @@ def parse_predictions(lines, filename):
 
         if line.startswith("sequence name="):
             accession = r_first_line.findall(line)[0]
-            accession = accession.replace(".", "")
+            accession = accession.replace(".", "_")
             if accession != filename:
                 sys.stderr.write("Accession number in file (" + accession + ") doesn't match accession number in filename (" + filename + ").  Aborting.\n")
                 sys.exit(3)
+            version = accession[-1] #TODO this will break if the version is > 9.  as of Nov 2012, the max version is 5.
+            accession = accession[0:8]
             continue; # skip first line
 
         if line.startswith("start position="):
@@ -75,6 +78,7 @@ def parse_predictions(lines, filename):
 
             if debug:
                 print "name: " + accession
+                print "version: " + version
                 print "start_location: " + start_location
                 print "end_location: " + end_location
                 print "amino_acid: " + amino_acid
@@ -82,7 +86,7 @@ def parse_predictions(lines, filename):
                 print "sequence: " + sequence
                 print "------------------------------------------------"
 
-            write_stats(accession, start_location, end_location, amino_acid, anti_codon, sequence)
+            write_stats(accession, version, start_location, end_location, amino_acid, anti_codon, sequence)
 
         else:
             continue;

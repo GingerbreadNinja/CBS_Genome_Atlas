@@ -19,7 +19,7 @@ from subprocess import call
 # the job is removed from the database by the last instruction in the makefile
 
 def usage():
-    sys.stderr.write('usage:\n\t' + sys.argv[0] + ' --accession=CP000020_2\n\t' + sys.argv[0] + ' --all\n');
+    sys.stderr.write('usage:\n\t' + sys.argv[0] + ' --accession=CP000020 --version=2\n\t' + sys.argv[0] + ' --all\n');
     sys.exit(2)
 
 def db_connect():
@@ -43,7 +43,7 @@ def new_genomes(time):
     cur=db_connect()
     cur.execute("""SELECT accession, version, replicon.genome_id FROM bioproject, genome, replicon WHERE genome.bioproject_id = bioproject.bioproject_id AND genome.genome_id = replicon.genome_id AND modify_date >= %s""", (time)) 
     accesions = []
-    foreach r in cur.fetchall():
+    for r in cur.fetchall():
         av = r[0] + "_" + r[1] # accession is actually accession_version
         accession.append(av)
     return accessions
@@ -52,20 +52,23 @@ def failed_genomes():
     # get list of all genomes to reprocess;
     return []
 
-def register_job(accession):
+def register_job(accession, version):
     job_id = 1 #TODO do not hardcode this
     job_uuid = uuid.uuid1()
     cur=db_connect()
-    cur.execute("""INSERT INTO active_job (job_id, submission_time, job_uuid, accession, status) VALUES (%s, now(), %s, %s, 'In Progress')""", (job_id, job_uuid, accession))
+    cur.execute("""INSERT INTO active_job (job_id, submission_time, job_uuid, accession, version, status) VALUES (%s, now(), %s, %s, %s, 'In Progress')""", (job_id, job_uuid, accession, version))
     return str(job_uuid)
 
 def process_one_genome(accession, version):
-# TODO check that accession file exists on disk
-# write to db active_jobs table that we are submitting to the queueing system
-    #TODO if not passed version, get latest version for this accession number
-    job_uuid = register_job(accession)
+    # TODO check that accession file exists on disk
+    # TODO if not passed version, get latest version for this accession number
+
+    # write to db active_jobs table that we are submitting to the queueing system
+    job_uuid = register_job(accession, version)
+
     logging_dir = "/home/people/helen/CBS_Genome_Atlas/analysis/"
-    call(["xmsub -l nodes=1:ppn=2 -de -ro " + logging_dir + "out -re " + logging_dir + "err -N " + job_uuid + " -r y make --ACCESSION=" + accession + " --VERSION=" + version + " --JOB_UUID=testuuid"])
+    #command = "xmsub -l nodes=1:ppn=2 -de -ro " + logging_dir + "out -re " + logging_dir + "err -N " + job_uuid + " -r y make ACCESSION=" + accession + " VERSION=" + version + " JOB_UUID=testuuid"
+    call(["xmsub", "-l", "nodes=1:ppn=2", "-de", "-ro", logging_dir + "out", "-re", logging_dir + "err", "-N", job_uuid, "-r", "y", "make", "ACCESSION=" + accession, "VERSION=" + version, "JOB_UUID=" + job_uuid])
     
 def process_new_genomes():
     for accession in new_genomes(last_runtime()):
@@ -77,11 +80,13 @@ def process_failed_genomes():
 
 def main(argv):
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "h", ["help", "all", "accession="])
+        opts, args = getopt.getopt(sys.argv[1:], "h", ["help", "all", "accession=", "version="])
     except getopt.GetoptError as err:
         sys.stderr.write(str(err) + "\n")
         usage()
     plan = ""
+    accession = ""
+    version = ""
     for o, a in opts:
         if o in ("-h", "--help"):
             usage()
@@ -89,6 +94,9 @@ def main(argv):
             plan = "all"
         elif o in ("--accession"):
             plan = "one"
+            accession = a
+        elif o in ("--version"):
+            version = a
         else:
             sys.stderr.write("Unregognized option " + o + "\n");
             usage()
@@ -96,7 +104,10 @@ def main(argv):
         process_new_genomes()
         process_failed_genomes()
     elif plan == "one":
-        process_one_genome(a)
+        if version == "" or accession == "":
+            usage()
+        else:
+            process_one_genome(accession, version)
     else:
         usage()
 

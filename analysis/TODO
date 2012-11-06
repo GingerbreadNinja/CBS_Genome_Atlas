@@ -1,17 +1,18 @@
 
-accession number needs to have version stripped in all code
++ accession number needs to have version stripped in all code
++ trnascan-stats needs to be written
+
+jobsteps should update database with errors when they error out!
+
+check everywhere that accession really is just the accession number and does not contain the version also
+
+accession, version in db should have the pair be the reference to replicon table
 
 database table jobstep should include the version of the program (trnascan, rnammer hmmer, etc) that is being run
 
 write tests for Makefile
 write tests for log insertion script
 
-db updates moved to main db scripts
-
-trnascan-stats needs to be written
-
-
-using full version of accession number everywhere, but it does not have the dot.  is this a problem?
-
+db updates moved to main db module
 
 we won't have the new genomes processed until the next day because it is looking at the modify date, not datetime
