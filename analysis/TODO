@@ -1,4 +1,5 @@
 
+accession number needs to have version stripped in all code
 
 database table jobstep should include the version of the program (trnascan, rnammer hmmer, etc) that is being run
 

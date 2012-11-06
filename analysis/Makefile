@@ -2,10 +2,11 @@
 JOB = single_genome
 
 # location that the genomes and outputfile are stored in
-GENOME_DIR = ../../genomes/
+GENOME_DIR = /home/panfs/cbs/projects/cge/data/public/genome_sync/accessions/
+OUTPUT_DIR = /home/panfs/cbs/projects/cge/data/public/genome_sync_analysis/
 
 # location that executables are stored in
-BIN_DIR = ./
+BIN_DIR = /home/people/helen/CBS_Genome_Atlas/analysis/
 
 all: single_genome
 
@@ -33,7 +34,7 @@ convert_to_fasta: $(ACCESSION).fna
 $(ACCESSION).fna:
 	@echo "running convert_to_fasta"
 	$(eval LOGID=$(shell python db_log.py --start --job=$(JOB) --jobstep=convert_to_fasta --accession=$(ACCESSION)))
-	python convert_gbk_fasta.py -i $(GENOME_DIR)$(ACCESSION).gbk -o $(GENOME_DIR)$(ACCESSION).fna
+	python convert_gbk_fasta.py -i $(GENOME_DIR)$(ACCESSION).gbk -o $(OUTPUT_DIR)$(ACCESSION).fna
 	python db_log.py --finish --logid=$(LOGID)
 
 rnammer: $(ACCESSION).rrna
@@ -41,7 +42,7 @@ rnammer: $(ACCESSION).rrna
 $(ACCESSION).rrna: $(ACCESSION).fna
 	@echo "running rnammer"
 	$(eval LOGID=$(shell python db_log.py --start --job=$(JOB) --jobstep=rnammer --accession=$(ACCESSION)))
-	$(BIN_DIR)rnammer -S bac -m ssu -f $(GENOME_DIR)$(ACCESSION).rrna $(GENOME_DIR)$(ACCESSION).fna
+	$(BIN_DIR)rnammer -S bac -m ssu -f $(OUTPUT_DIR)$(ACCESSION).rrna $(GENOME_DIR)$(ACCESSION).fna
 	python db_log.py --finish --logid=$(LOGID)
 
 trnascan: $(ACCESSION).trna
@@ -49,7 +50,7 @@ trnascan: $(ACCESSION).trna
 $(ACCESSION).trna: $(ACCESSION).fna
 	@echo "running trnascan"
 	$(eval LOGID=$(shell python db_log.py --start --job=$(JOB) --jobstep=trnascan --accession=$(ACCESSION)))
-	/home/people/helen/bin/trnascan-1.4 -o $(GENOME_DIR)$(ACCESSION).trna $(GENOME_DIR)$(ACCESSION).fna
+	/home/people/helen/bin/trnascan-1.4 -o $(OUTPUT_DIR)$(ACCESSION).trna $(GENOME_DIR)$(ACCESSION).fna
 	python db_log.py --finish --logid=$(LOGID)
 
 trnascan-stats: $(ACCESSION).trna
@@ -66,7 +67,6 @@ ifndef $(SUCCESS)
 	python $(BIN_DIR)db_log.py --finish --logid=$(LOGID)
 endif
 
-#TODO this can never be called by make clean because of check on ACCESSION above
 clean:
-	rm $(GENOME_DIR)*.fna $(GENOME_DIR)*.rrna
+	rm $(OUTPUT_DIR)$(ACCESSION).fna $(OUTPUT_DIR)$(ACCESSION).rrna $(OUTPUT_DIR)$(ACCESSION).trna
 

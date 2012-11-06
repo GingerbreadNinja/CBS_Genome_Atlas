@@ -59,8 +59,8 @@ def process_one_genome(accession):
 # TODO check that accession file exists on disk
 # write to db active_jobs table that we are submitting to the queueing system
     job_uuid = register_job(accession)
-    #call(["xmsub", "make ACCESSION=" + accession + " JOB_UUID=" + job_uuid])
-    call(["xmsub", "./make-wrapper " + accession + " " + job_uuid])
+    logging_dir = "/home/people/helen/CBS_Genome_Atlas/analysis/"
+    call(["xmsub -l nodes=1:ppn=2 -de -ro " + logging_dir + "out -re " + logging_dir + "err -N " + job_uuid + " -r y make --ACCESSION=" + accession + " --JOB_UUID=testuuid"])
     
 def process_new_genomes():
     for accession in new_genomes(last_runtime()):
