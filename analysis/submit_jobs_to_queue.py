@@ -50,7 +50,7 @@ def process_one_genome(accession, version):
 
     logging_dir = "/home/people/helen/CBS_Genome_Atlas/analysis/"
     #command = "xmsub -l nodes=1:ppn=2 -de -ro " + logging_dir + "out -re " + logging_dir + "err -N " + job_uuid + " -r y make ACCESSION=" + accession + " VERSION=" + version + " JOB_UUID=testuuid"
-    call(["xmsub", "-l", "nodes=1:ppn=2", "-de", "-ro", logging_dir + "out", "-re", logging_dir + "err", "-N", job_uuid, "-r", "y", "make", "ACCESSION=" + accession, "VERSION=" + str(version), "JOB_UUID=" + job_uuid])
+    call(["xmsub", "-l", "nodes=1:ppn=2", "-de", "-ro", logging_dir + "out_" + job_uuid, "-re", logging_dir + "err_" + job_uuid, "-N", job_uuid, "-r", "y", "make", "ACCESSION=" + accession, "VERSION=" + str(version), "JOB_UUID=" + job_uuid])
  
 def get_last_runtime(backfill):
     # check in db for latest runtime
