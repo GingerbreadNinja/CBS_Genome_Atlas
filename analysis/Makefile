@@ -9,16 +9,24 @@ BIN_DIR = ./
 
 all: single_genome
 
-single_genome: convert_to_fasta trnascan trnascan-stats
+single_genome: convert_to_fasta trnascan trnascan-stats remove-job
 #single_genome: convert_to_fasta rnammer rnastats rnaselfalignment rnacrossalignment trnascan
 
-# variable ACCESSION must be overridden on the make command line for each accession number, for example:
-# make ACCESSION=CP0000202 all
+# variables ACCESSION and JOB_UUID must be overridden on the make command line for each accession number, for example:
+# make ACCESSION=CP0000202 JOB_UUID=uuid all
 # this assumes the existence of example.gbk as a genebank formatted file, and will create additional files as example.*
+
+# remove-job must be called if all steps were successful, and must be the last recipe processed.  it deregisters this job from the database once everything is done.
 
 ifndef ACCESSION
 $(error ACCESSION is not set)
 endif
+
+ifndef JOB_UUID
+$(error JOB_UUID is not set)
+endif
+
+#TODO uuid must be passed through to db_log and stored in jobstep_log table in job_id table
 
 convert_to_fasta: $(ACCESSION).fna
 
@@ -50,6 +58,13 @@ trnascan-stats: $(ACCESSION).trna
 	python $(BIN_DIR)trnascan-stats.py $(GENOME_DIR)$(ACCESSION).trna
 	python $(BIN_DIR)db_log.py --finish --logid=$(LOGID)
 
+remove-job:
+ifndef $(SUCCESS)
+	@echo "Done.  Removing job from db"
+	$(eval LOGID=$(shell python $(BIN_DIR)db_log.py --start --job=$(JOB) --jobstep=remove-job --accession=$(ACCESSION)))
+	python $(BIN_DIR)remove_job.py --job=$(JOB) --accession=$(ACCESSION)
+	python $(BIN_DIR)db_log.py --finish --logid=$(LOGID)
+endif
 
 #TODO this can never be called by make clean because of check on ACCESSION above
 clean:

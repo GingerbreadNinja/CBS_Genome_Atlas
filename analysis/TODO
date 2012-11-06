@@ -1,4 +1,7 @@
 
+
+database table jobstep should include the version of the program (trnascan, rnammer hmmer, etc) that is being run
+
 write tests for Makefile
 write tests for log insertion script
 
@@ -9,3 +12,5 @@ trnascan-stats needs to be written
 
 using full version of accession number everywhere, but it does not have the dot.  is this a problem?
 
+
+we won't have the new genomes processed until the next day because it is looking at the modify date, not datetime
