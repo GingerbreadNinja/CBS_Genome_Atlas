@@ -3,6 +3,7 @@
 -- eg within the job to process one genome, the jobsteps include converting gbk -> fasta, running rnammer, etc
 
 
+drop table cron_log;
 drop table jobstep_log;
 drop table active_job;
 drop table job;
@@ -40,12 +41,12 @@ create table active_job
     status enum ('Permanent Failure', 'In Progress', 'Success')
 );
 
--- logs every time the script to enqueue jobs has been run
+-- logs every time the hourly cron script to enqueue jobs has been run
 create table cron_log
 (
     id INTEGER PRIMARY KEY AUTO_INCREMENT,
     start_time DATETIME NOT NULL,
-    responsible enum ('cron', 'oneoff')
+    responsible enum ('cron', 'oneoff', 'backfill')
 );
 
 create table job
