@@ -19,7 +19,7 @@ from subprocess import call
 # the job is removed from the database by the last instruction in the makefile
 
 def usage():
-    sys.stderr.write('usage:\n\t' + sys.argv[0] + ' --accession=CP0000202\n\t' + sys.argv[0] + ' --all\n');
+    sys.stderr.write('usage:\n\t' + sys.argv[0] + ' --accession=CP000020_2\n\t' + sys.argv[0] + ' --all\n');
     sys.exit(2)
 
 def db_connect():
@@ -41,8 +41,12 @@ def last_runtime():
 def new_genomes(time):
     # get list of all new genomes added since last runtime
     cur=db_connect()
-    cur.execute("""SELECT accession, replicon.genome_id FROM bioproject, genome, replicon WHERE genome.bioproject_id = bioproject.bioproject_id AND genome.genome_id = replicon.genome_id AND modify_date >= %s""", (time)) 
-    return cur.fetchall()
+    cur.execute("""SELECT accession, version, replicon.genome_id FROM bioproject, genome, replicon WHERE genome.bioproject_id = bioproject.bioproject_id AND genome.genome_id = replicon.genome_id AND modify_date >= %s""", (time)) 
+    accesions = []
+    foreach r in cur.fetchall():
+        av = r[0] + "_" + r[1] # accession is actually accession_version
+        accession.append(av)
+    return accessions
 
 def failed_genomes():
     # get list of all genomes to reprocess;
@@ -55,12 +59,13 @@ def register_job(accession):
     cur.execute("""INSERT INTO active_job (job_id, submission_time, job_uuid, accession, status) VALUES (%s, now(), %s, %s, 'In Progress')""", (job_id, job_uuid, accession))
     return str(job_uuid)
 
-def process_one_genome(accession):
+def process_one_genome(accession, version):
 # TODO check that accession file exists on disk
 # write to db active_jobs table that we are submitting to the queueing system
+    #TODO if not passed version, get latest version for this accession number
     job_uuid = register_job(accession)
     logging_dir = "/home/people/helen/CBS_Genome_Atlas/analysis/"
-    call(["xmsub -l nodes=1:ppn=2 -de -ro " + logging_dir + "out -re " + logging_dir + "err -N " + job_uuid + " -r y make --ACCESSION=" + accession + " --JOB_UUID=testuuid"])
+    call(["xmsub -l nodes=1:ppn=2 -de -ro " + logging_dir + "out -re " + logging_dir + "err -N " + job_uuid + " -r y make --ACCESSION=" + accession + " --VERSION=" + version + " --JOB_UUID=testuuid"])
     
 def process_new_genomes():
     for accession in new_genomes(last_runtime()):

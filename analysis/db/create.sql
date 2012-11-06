@@ -16,10 +16,11 @@ create table jobstep_log
     log_id INTEGER PRIMARY KEY AUTO_INCREMENT,
     start_time DATETIME NOT NULL,
     status enum('Successful', 'Error', 'In Progress', 'Aborted'),
-    job_id INTEGER,
-    jobstep_id INTEGER,
-    job_uuid TEXT,
-    accession VARCHAR(255),
+    job_id INTEGER NOT NULL,
+    jobstep_id INTEGER NOT NULL,
+    job_uuid TEXT NOT NULL,
+    accession VARCHAR(255) NOT NULL,
+    version INT(11) NOT NULL,
     FOREIGN KEY (job_id) REFERENCES job (job_id), -- (which make file)
     FOREIGN KEY (jobstep_id) REFERENCES jobstep (jobstep_id), -- (which jobstep/command in make file)
     FOREIGN KEY (accession) REFERENCES replicon (accession)
@@ -32,8 +33,9 @@ create table active_job
     id INTEGER PRIMARY KEY AUTO_INCREMENT,
     job_id INTEGER NOT NULL, -- (which make script)
     submission_time DATETIME NOT NULL,
-    job_uuid TEXT,
-    accession VARCHAR(255),
+    job_uuid TEXT NOT NULL,
+    accession VARCHAR(255) NOT NULL,
+    version INT(11) NOT NULL,
     FOREIGN KEY (accession) REFERENCES replicon (accession), -- (null implies all)
     status enum ('Permanent Failure', 'In Progress', 'Success')
 );
@@ -87,8 +89,9 @@ insert into job_jobsteps( job_id, jobstep_id) values (1, 5);
 create table trna
 (
     id INTEGER PRIMARY KEY AUTO_INCREMENT,
-    accession varchar(255),
+    accession varchar(255) NOT NULL,
     FOREIGN KEY (accession) REFERENCES replicon (accession),
+    version INT(11) NOT NULL,
     start_location INTEGER NOT NULL,
     end_location INTEGER NOT NULL,
     amino_acid enum ('Ala', 'Arg', 'Asn', 'Asp', 'Cys', 'Gln', 'Glu', 'Gly', 'His', 'Ile', 'Leu', 'Lys', 'Met', 'Phe', 'Pro', 'Ser', 'Thr', 'Trp', 'Tyr', 'Val'),

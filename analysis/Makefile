@@ -23,50 +23,54 @@ ifndef ACCESSION
 $(error ACCESSION is not set)
 endif
 
+ifndef VERSION
+$(error VERSION is not set)
+endif
+
 ifndef JOB_UUID
 $(error JOB_UUID is not set)
 endif
 
 #TODO uuid must be passed through to db_log and stored in jobstep_log table in job_id table
 
-convert_to_fasta: $(ACCESSION).fna
+convert_to_fasta: $(ACCESSION)_$(VERSION).fna
 
-$(ACCESSION).fna:
+$(ACCESSION)_$(VERSION).fna:
 	@echo "running convert_to_fasta"
-	$(eval LOGID=$(shell python db_log.py --start --job=$(JOB) --jobstep=convert_to_fasta --accession=$(ACCESSION)))
-	python convert_gbk_fasta.py -i $(GENOME_DIR)$(ACCESSION).gbk -o $(OUTPUT_DIR)$(ACCESSION).fna
+	$(eval LOGID=$(shell python db_log.py --start --job=$(JOB) --job_uuid=$(JOB_UUID) --jobstep=convert_to_fasta --accession=$(ACCESSION) --version=$(VERSION)))
+	python convert_gbk_fasta.py -i $(GENOME_DIR)$(ACCESSION)_$(VERSION).gbk -o $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).fna
 	python db_log.py --finish --logid=$(LOGID)
 
-rnammer: $(ACCESSION).rrna
+rnammer: $(ACCESSION)_$(VERSION).rrna
 
-$(ACCESSION).rrna: $(ACCESSION).fna
+$(ACCESSION)_$(VERSION).rrna: $(ACCESSION)_$(VERSION).fna
 	@echo "running rnammer"
-	$(eval LOGID=$(shell python db_log.py --start --job=$(JOB) --jobstep=rnammer --accession=$(ACCESSION)))
-	$(BIN_DIR)rnammer -S bac -m ssu -f $(OUTPUT_DIR)$(ACCESSION).rrna $(GENOME_DIR)$(ACCESSION).fna
+	$(eval LOGID=$(shell python db_log.py --start --job=$(JOB) --job_uuid=$(JOB_UUID) --jobstep=rnammer --accession=$(ACCESSION) --version=$(VERSION)))
+	$(BIN_DIR)rnammer -S bac -m ssu -f $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).rrna $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).fna
 	python db_log.py --finish --logid=$(LOGID)
 
-trnascan: $(ACCESSION).trna
+trnascan: $(ACCESSION)_$(VERSION).trna
 
-$(ACCESSION).trna: $(ACCESSION).fna
+$(ACCESSION)_$(VERSION).trna: $(ACCESSION)_$(VERSION).fna
 	@echo "running trnascan"
-	$(eval LOGID=$(shell python db_log.py --start --job=$(JOB) --jobstep=trnascan --accession=$(ACCESSION)))
-	/home/people/helen/bin/trnascan-1.4 -o $(OUTPUT_DIR)$(ACCESSION).trna $(GENOME_DIR)$(ACCESSION).fna
+	$(eval LOGID=$(shell python db_log.py --start --job=$(JOB) --job_uuid=$(JOB_UUID) --jobstep=trnascan --accession=$(ACCESSION) --version=$(VERSION)))
+	/home/people/helen/bin/trnascan-1.4 -o $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).trna $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).fna
 	python db_log.py --finish --logid=$(LOGID)
 
-trnascan-stats: $(ACCESSION).trna
+trnascan-stats: $(ACCESSION)_$(VERSION).trna
 	@echo "running trnascan-stats"
-	$(eval LOGID=$(shell python $(BIN_DIR)db_log.py --start --job=$(JOB) --jobstep=trnascan-stats --accession=$(ACCESSION)))
-	python $(BIN_DIR)trnascan-stats.py $(GENOME_DIR)$(ACCESSION).trna
+	$(eval LOGID=$(shell python $(BIN_DIR)db_log.py --start --job=$(JOB) --job_uuid=$(JOB_UUID) --jobstep=trnascan-stats --accession=$(ACCESSION) --version=$(VERSION)))
+	python $(BIN_DIR)trnascan-stats.py $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).trna
 	python $(BIN_DIR)db_log.py --finish --logid=$(LOGID)
 
 remove-job:
 ifndef $(SUCCESS)
 	@echo "Done.  Removing job from db"
-	$(eval LOGID=$(shell python $(BIN_DIR)db_log.py --start --job=$(JOB) --jobstep=remove-job --accession=$(ACCESSION)))
-	python $(BIN_DIR)remove_job.py --job=$(JOB) --accession=$(ACCESSION)
+	$(eval LOGID=$(shell python $(BIN_DIR)db_log.py --start --job=$(JOB) --job_uuid=$(JOB_UUID) --jobstep=remove-job --accession=$(ACCESSION) --version=$(VERSION)))
+	python $(BIN_DIR)db_log.py --job_uuid=$(JOB_UUID)
 	python $(BIN_DIR)db_log.py --finish --logid=$(LOGID)
 endif
 
 clean:
-	rm $(OUTPUT_DIR)$(ACCESSION).fna $(OUTPUT_DIR)$(ACCESSION).rrna $(OUTPUT_DIR)$(ACCESSION).trna
+	rm $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).fna $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).rrna $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).trna
 
