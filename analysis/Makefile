@@ -1,9 +1,11 @@
 
 JOB = single_genome
 
+# TODO get dir locations from config file (maybe with configure?)
+
 # location that the genomes and outputfile are stored in
 GENOME_DIR = /home/panfs/cbs/projects/cge/data/public/genome_sync/accessions/
-OUTPUT_DIR = /home/panfs/cbs/projects/cge/data/public/genome_sync_analysis/
+OUTPUT_DIR = /home/panfs/cbs/projects/cge/data/public/genome_sync/analysis/
 
 # location that executables are stored in
 BIN_DIR = /home/people/helen/CBS_Genome_Atlas/analysis/

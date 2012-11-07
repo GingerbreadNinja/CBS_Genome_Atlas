@@ -13,6 +13,8 @@ write tests for log insertion script
 null accession numbers are being written into trna table
 some accession numbers in database don't exist on filesystem
 
+add sequence length to calculations
+
 db updates moved to main db module
 
 we won't have the new genomes processed until the next day because it is looking at the modify date, not datetime

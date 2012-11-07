@@ -25,7 +25,7 @@ from subprocess import call
 debug = True
 
 def usage():
-    sys.stderr.write('usage:\n\t' + sys.argv[0] + ' --accession=CP000020 --version=2\n\t' + sys.argv[0] + ' --all [--backfill]\n');
+    sys.stderr.write('usage:\n\t' + sys.argv[0] + ' --accession=CP000020 --version=2\n\t' + sys.argv[0] + ' --av=CP000020_2\n\t' + sys.argv[0] + ' --all [--backfill]\n');
     sys.exit(2)
 
 def db_connect():
@@ -48,7 +48,8 @@ def process_one_genome(accession, version):
     # write to db active_jobs table that we are submitting to the queueing system
     job_uuid = register_job(accession, version)
 
-    logging_dir = "/home/people/helen/CBS_Genome_Atlas/analysis/"
+    # TODO get this information from a config file
+    logging_dir = "/home/panfs/cbs/projects/cge/data/public/genome_sync/log"
     #command = "xmsub -l nodes=1:ppn=2 -de -ro " + logging_dir + "out -re " + logging_dir + "err -N " + job_uuid + " -r y make ACCESSION=" + accession + " VERSION=" + version + " JOB_UUID=testuuid"
     call(["xmsub", "-l", "nodes=1:ppn=2", "-de", "-ro", logging_dir + "out_" + job_uuid, "-re", logging_dir + "err_" + job_uuid, "-N", job_uuid, "-r", "y", "make", "ACCESSION=" + accession, "VERSION=" + str(version), "JOB_UUID=" + job_uuid])
  
@@ -95,7 +96,7 @@ def process_failed_genomes():
 
 def main(argv):
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "h", ["help", "all", "accession=", "version=", "backfill"])
+        opts, args = getopt.getopt(sys.argv[1:], "h", ["help", "all", "accession=", "version=", "av=", "backfill"])
     except getopt.GetoptError as err:
         sys.stderr.write(str(err) + "\n")
         usage()
@@ -113,6 +114,9 @@ def main(argv):
             accession = a
         elif o in ("--version"):
             version = a
+        elif o in ("--av"):
+            accession=o[0:8]
+            version=o[-1]
         elif o in ("--backfill"):
             backfill = True
         else:

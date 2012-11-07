@@ -86,6 +86,8 @@ insert into job_jobsteps( job_id, jobstep_id) values (1, 3);
 insert into job_jobsteps( job_id, jobstep_id) values (1, 4);
 insert into job_jobsteps( job_id, jobstep_id) values (1, 5);
 
+create or replace view accession_version_by_name as select bioproject.bioproject_id, modify_date, concat(accession, "_", version) as av, accession, version, replicon_type, genome_name from genome, replicon, bioproject where genome.bioproject_id = bioproject.bioproject_id and genome.genome_id=replicon.genome_id;
+
 
 create table trna
 (
