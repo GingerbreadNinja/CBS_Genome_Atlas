@@ -52,14 +52,14 @@ create table cron_log
 create table job
 (
     job_id INTEGER PRIMARY KEY AUTO_INCREMENT,
-    name TEXT,
+    job_name TEXT,
     description TEXT
 );
 
 create table jobstep
 (
     jobstep_id INTEGER PRIMARY KEY AUTO_INCREMENT,
-    name TEXT,
+    job_name TEXT,
     description TEXT
 );
 
@@ -87,6 +87,8 @@ insert into job_jobsteps( job_id, jobstep_id) values (1, 4);
 insert into job_jobsteps( job_id, jobstep_id) values (1, 5);
 
 create or replace view accession_version_by_name as select bioproject.bioproject_id, modify_date, concat(accession, "_", version) as av, accession, version, replicon_type, genome_name from genome, replicon, bioproject where genome.bioproject_id = bioproject.bioproject_id and genome.genome_id=replicon.genome_id;
+
+create or replace view log as select jobstep_log.accession, jobstep_log.version, jobstep_name as step_name, jobstep_log.status as step_status, jobstep_log.start_time as step_start_time, job_name, jobstep_log.job_uuid, active_job.status as job_status, active_job.submission_time as job_start_time from active_job, jobstep_log, job, jobstep where active_job.job_uuid = jobstep_log.job_uuid and job.job_id= jobstep_log.job_id and jobstep.jobstep_id=jobstep_log.jobstep_id;
 
 
 create table trna

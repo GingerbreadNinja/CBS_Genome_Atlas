@@ -50,7 +50,6 @@ def process_one_genome(accession, version):
 
     # TODO get this information from a config file
     logging_dir = "/home/panfs/cbs/projects/cge/data/public/genome_sync/log"
-    #command = "xmsub -l nodes=1:ppn=2 -de -ro " + logging_dir + "out -re " + logging_dir + "err -N " + job_uuid + " -r y make ACCESSION=" + accession + " VERSION=" + version + " JOB_UUID=testuuid"
     call(["xmsub", "-l", "nodes=1:ppn=2", "-de", "-ro", logging_dir + "out_" + job_uuid, "-re", logging_dir + "err_" + job_uuid, "-N", job_uuid, "-r", "y", "make", "ACCESSION=" + accession, "VERSION=" + str(version), "JOB_UUID=" + job_uuid])
  
 def get_last_runtime(backfill):
