@@ -114,8 +114,9 @@ def main(argv):
         elif o in ("--version"):
             version = a
         elif o in ("--av"):
-            accession=o[0:8]
-            version=o[-1]
+            plan = "one"
+            accession=a[0:8]
+            version=a[-1]
         elif o in ("--backfill"):
             backfill = True
         else:
