@@ -4,7 +4,7 @@ import getopt;
 
 
 def usage():
-    sys.stderr.write('usage:\n\t' + sys.argv[0] + ' --start --job=single_genome --jobstep=rnammer --accession=CP000020 --version=2\n\t' + sys.argv[0] + ' --finish --logid=23\n\t' + sys.argv[0] + ' --remove --job_uuid=job_uuid\n');
+    sys.stderr.write('usage:\n\t' + sys.argv[0] + ' --start --job=single_genome --jobstep=rnammer --accession=CP000020 --version=2\n\t' + sys.argv[0] + ' --finish=success --logid=23\n\t' + sys.argv[0] + ' --finish=failure --logid=23\n\t' + sys.argv[0] + ' --remove_job=success --job_uuid=job_uuid\n\t' + sys.argv[0] + ' --remove_job=failure --job_uuid=job_uuid\n');
     sys.exit(2)
 
 def db_connect():
@@ -15,23 +15,28 @@ def db_connect():
 
 def start(job, job_uuid, jobstep, accession, version):
     cur = db_connect()
-    cur.execute("""INSERT INTO jobstep_log (start_time, status, job_id, job_uuid, jobstep_id, accession, version) VALUES (now(), %s, (SELECT job_id FROM job WHERE name=%s), %s, (SELECT jobstep_id FROM jobstep WHERE name=%s), %s, %s)""", ('In Progress', job, job_uuid, jobstep, accession, version))
+    cur.execute("""INSERT INTO jobstep_log (start_time, status, job_id, job_uuid, jobstep_id, accession, version) VALUES (now(), %s, (SELECT job_id FROM job WHERE job_name=%s), %s, (SELECT jobstep_id FROM jobstep WHERE jobstep_name=%s), %s, %s)""", ('In Progress', job, job_uuid, jobstep, accession, version))
     #TODO error checking
     print cur.lastrowid
 
-def finish(logid):
+def finish(logid, success):
     cur = db_connect()
-    cur.execute("""UPDATE jobstep_log SET status='Successful' WHERE log_id=%s""", (logid))
+    if success == "success":
+        cur.execute("""UPDATE jobstep_log SET status='Success' WHERE log_id=%s""", (logid))
+    elif success == "failure":
+        cur.execute("""UPDATE jobstep_log SET status='Failure' WHERE log_id=%s""", (logid))
     #TODO error checking
 
-def remove(job_uuid):
+def remove_job(job_uuid, success):
     cur=db_connect()
-    cur.execute("""DELETE from active_jobs WHERE job_uuid=%s""", (job_uuid))
-    #TODO error checking
+    if success == "success":
+        cur.execute("""UPDATE active_job SET status="Success" WHERE job_uuid=%s""", (job_uuid))
+    elif success == "failure":
+        cur.execute("""UPDATE active_job SET status="Failure" WHERE job_uuid=%s""", (job_uuid))
 
 def main(argv):
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "h", ["help", "start", "finish", "remove", "job=", "job_uuid=", "jobstep=", "accession=", "version=", "logid="])
+        opts, args = getopt.getopt(sys.argv[1:], "h", ["help", "start", "finish=", "remove_job=", "job=", "job_uuid=", "jobstep=", "accession=", "version=", "logid="])
     except getopt.GetoptError as err:
         sys.stderr.write(str(err) + "\n")
         usage()
@@ -41,6 +46,8 @@ def main(argv):
     jobstep = ""
     accession = ""
     version = ""
+    success = ""
+    job_success = ""
     logid = ""
     for o, a in opts:
         if o in ("-h", "--help"):
@@ -61,8 +68,10 @@ def main(argv):
             state = "start"
         elif o in ("--finish"):
             state = "finish"
-        elif o in ("--remove"):
-            state = "remove"
+            success = a
+        elif o in ("--remove_job"):
+            state = "remove_job"
+            job_success = a
         else:
             sys.stderr.write("Unregognized option " + o + "\n");
             usage()
@@ -77,9 +86,15 @@ def main(argv):
             sys.stderr.write("Must specify logid with the finish option.\n")
             usage()
         else:
-            finish(logid)
-    if state == "remove":
-        remove()
+            if success == "":
+                sys.stderr.write("Must specify success or failure with the finish option.\n")
+            else:
+                finish(logid, success)
+    if state == "remove_job":
+        if job_success == "":
+            sys.stderr.write("Must specify success or failure with the remove job option.\n")
+        else:
+            remove_job(job_success)
 
 if __name__ == "__main__":
     main(sys.argv[1:])

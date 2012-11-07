@@ -29,7 +29,10 @@ def main(argv):
          outputfile = inputfile + ".fasta";
    print 'Input file is ', inputfile
    print 'Output file is ', outputfile
-   SeqIO.convert(inputfile, "genbank", outputfile, "fasta")
+   try:
+      SeqIO.convert(inputfile, "genbank", outputfile, "fasta")
+   except IOError as e:
+         sys.exit(1)
 
 if __name__ == "__main__":
    main(sys.argv[1:])

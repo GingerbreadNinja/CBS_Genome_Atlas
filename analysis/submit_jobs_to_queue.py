@@ -49,8 +49,8 @@ def process_one_genome(accession, version):
     job_uuid = register_job(accession, version)
 
     # TODO get this information from a config file
-    logging_dir = "/home/panfs/cbs/projects/cge/data/public/genome_sync/log"
-    call(["xmsub", "-l", "nodes=1:ppn=2", "-de", "-ro", logging_dir + "out_" + job_uuid, "-re", logging_dir + "err_" + job_uuid, "-N", job_uuid, "-r", "y", "make", "ACCESSION=" + accession, "VERSION=" + str(version), "JOB_UUID=" + job_uuid])
+    logging_dir = "/home/panfs/cbs/projects/cge/data/public/genome_sync/log/"
+    call(["xmsub", "-l", "nodes=1:ppn=2", "-de", "-ro", logging_dir + accession + "_" + job_uuid + "_out", "-re", logging_dir + accession + "_" + job_uuid + "_err", "-N", job_uuid, "-r", "y", "make -i -k", "ACCESSION=" + accession, "VERSION=" + str(version), "JOB_UUID=" + job_uuid])
  
 def get_last_runtime(backfill):
     # check in db for latest runtime

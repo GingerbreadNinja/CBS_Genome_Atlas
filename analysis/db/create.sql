@@ -16,7 +16,7 @@ create table jobstep_log
 (
     log_id INTEGER PRIMARY KEY AUTO_INCREMENT,
     start_time DATETIME NOT NULL,
-    status enum('Successful', 'Error', 'In Progress', 'Aborted'),
+    status enum('Success', 'Failure', 'In Progress', 'Aborted'),
     job_id INTEGER NOT NULL,
     jobstep_id INTEGER NOT NULL,
     job_uuid TEXT NOT NULL,
@@ -38,7 +38,7 @@ create table active_job
     accession VARCHAR(255) NOT NULL,
     version INT(11) NOT NULL,
     FOREIGN KEY (accession) REFERENCES replicon (accession), -- (null implies all)
-    status enum ('Permanent Failure', 'In Progress', 'Success')
+    status enum ('Failure', 'In Progress', 'Success')
 );
 
 -- logs every time the hourly cron script to enqueue jobs has been run
@@ -99,7 +99,7 @@ create table trna
     version INT(11) NOT NULL,
     start_location INTEGER NOT NULL,
     end_location INTEGER NOT NULL,
-    amino_acid enum ('Ala', 'Arg', 'Asn', 'Asp', 'Cys', 'Gln', 'Glu', 'Gly', 'His', 'Ile', 'Leu', 'Lys', 'Met', 'Phe', 'Pro', 'Ser', 'Thr', 'Trp', 'Tyr', 'Val'),
+    amino_acid enum ('Ala', 'Arg', 'Asn', 'Asp', 'Cys', 'Gln', 'Glu', 'Gly', 'His', 'Ile', 'Leu', 'Lys', 'Met', 'Phe', 'Pro', 'Ser', 'Thr', 'Trp', 'Tyr', 'Val', 'Sup'),
     anti_codon enum ('aaa', 'aac', 'aag', 'aat', 'aca', 'acc', 'acg', 'act', 'aga', 'agc', 'agg', 'agt', 'ata', 'atc', 'atg', 'att', 'caa', 'cac', 'cag', 'cat', 'cca', 'ccc', 'ccg', 'cct', 'cga', 'cgc', 'cgg', 'cgt', 'cta', 'ctc', 'ctg', 'ctt', 'gaa', 'gac', 'gag', 'gat', 'gca', 'gcc', 'gcg', 'gct', 'gga', 'ggc', 'ggg', 'ggt', 'gta', 'gtc', 'gtg', 'gtt', 'taa', 'tac', 'tag', 'tat', 'tca', 'tcc', 'tcg', 'tct', 'tga', 'tgc', 'tgg', 'tgt', 'tta', 'ttc', 'ttg', 'ttt'),
     sequence TEXT
 );
