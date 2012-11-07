@@ -2,9 +2,10 @@ import MySQLdb;
 import sys;
 import getopt;
 
+debug = False
 
 def usage():
-    sys.stderr.write('usage:\n\t' + sys.argv[0] + ' --start --job=single_genome --jobstep=rnammer --accession=CP000020 --version=2\n\t' + sys.argv[0] + ' --finish=success --logid=23\n\t' + sys.argv[0] + ' --finish=failure --logid=23\n\t' + sys.argv[0] + ' --remove_job=success --job_uuid=job_uuid\n\t' + sys.argv[0] + ' --remove_job=failure --job_uuid=job_uuid\n');
+    sys.stderr.write('usage:\n\t' + sys.argv[0] + ' --start --job=single_genome --jobstep=rnammer --accession=CP000020 --version=2\n\t' + sys.argv[0] + ' --finish=success --logid=23\n\t' + sys.argv[0] + ' --finish=failure --logid=23\n\t' + sys.argv[0] + ' --remove_job --job_uuid=job_uuid\n');
     sys.exit(2)
 
 def db_connect():
@@ -14,29 +15,40 @@ def db_connect():
     return cur
 
 def start(job, job_uuid, jobstep, accession, version):
+    if debug:
+        print "logging start of jobstep"
     cur = db_connect()
     cur.execute("""INSERT INTO jobstep_log (start_time, status, job_id, job_uuid, jobstep_id, accession, version) VALUES (now(), %s, (SELECT job_id FROM job WHERE job_name=%s), %s, (SELECT jobstep_id FROM jobstep WHERE jobstep_name=%s), %s, %s)""", ('In Progress', job, job_uuid, jobstep, accession, version))
     #TODO error checking
     print cur.lastrowid
 
 def finish(logid, success):
+    if debug:
+        print "logging end of jobstep"
     cur = db_connect()
     if success == "success":
         cur.execute("""UPDATE jobstep_log SET status='Success' WHERE log_id=%s""", (logid))
     elif success == "failure":
         cur.execute("""UPDATE jobstep_log SET status='Failure' WHERE log_id=%s""", (logid))
-    #TODO error checking
 
-def remove_job(job_uuid, success):
+def remove_job(job_uuid):
+    if debug:
+        print "removing job"
     cur=db_connect()
-    if success == "success":
+    #TODO check that success passed in was really successful!
+    cur.execute("""SELECT * FROM jobstep_log WHERE job_uuid=%s AND status='Failure'""", (job_uuid))
+    success = True
+    for row in cur.fetchall():
+        success = False
+        # TODO add in reporting code here
+    if success:
         cur.execute("""UPDATE active_job SET status="Success" WHERE job_uuid=%s""", (job_uuid))
-    elif success == "failure":
+    else:
         cur.execute("""UPDATE active_job SET status="Failure" WHERE job_uuid=%s""", (job_uuid))
 
 def main(argv):
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "h", ["help", "start", "finish=", "remove_job=", "job=", "job_uuid=", "jobstep=", "accession=", "version=", "logid="])
+        opts, args = getopt.getopt(sys.argv[1:], "h", ["help", "start", "finish=", "remove_job", "job=", "job_uuid=", "jobstep=", "accession=", "version=", "logid="])
     except getopt.GetoptError as err:
         sys.stderr.write(str(err) + "\n")
         usage()
@@ -71,7 +83,6 @@ def main(argv):
             success = a
         elif o in ("--remove_job"):
             state = "remove_job"
-            job_success = a
         else:
             sys.stderr.write("Unregognized option " + o + "\n");
             usage()
@@ -91,10 +102,7 @@ def main(argv):
             else:
                 finish(logid, success)
     if state == "remove_job":
-        if job_success == "":
-            sys.stderr.write("Must specify success or failure with the remove job option.\n")
-        else:
-            remove_job(job_success)
+        remove_job(job_uuid)
 
 if __name__ == "__main__":
     main(sys.argv[1:])

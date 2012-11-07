@@ -1,4 +1,6 @@
 
+SHELL = /bin/bash
+
 JOB = single_genome
 
 # TODO get dir locations from config file (maybe with configure?)
@@ -9,11 +11,6 @@ OUTPUT_DIR = /home/panfs/cbs/projects/cge/data/public/genome_sync/analysis/
 
 # location that executables are stored in
 BIN_DIR = /home/people/helen/CBS_Genome_Atlas/analysis/
-
-all: single_genome
-
-single_genome: convert_to_fasta trnascan trnascan-stats remove-job
-#single_genome: convert_to_fasta rnammer rnastats rnaselfalignment rnacrossalignment trnascan
 
 # variables ACCESSION and JOB_UUID must be overridden on the make command line for each accession number, for example:
 # make -k -i ACCESSION=CP0000202 JOB_UUID=uuid all
@@ -39,79 +36,41 @@ endif
 
 #TODO uuid must be passed through to db_log and stored in jobstep_log table in job_id table
 
+
+all: single_genome
+
+single_genome: convert_to_fasta trnascan trnascan-stats remove-job
+
 convert_to_fasta: $(ACCESSION)_$(VERSION).fna
 
-JOB_FAILURE = 0
-
-.ONESHELL:
 $(ACCESSION)_$(VERSION).fna:
-	@echo "running convert_to_fasta"
-	$(eval LOGID=$(shell python db_log.py --start --job=$(JOB) --job_uuid=$(JOB_UUID) --jobstep=convert_to_fasta --accession=$(ACCESSION) --version=$(VERSION)))
-	python convert_gbk_fasta.py -i $(GENOME_DIR)$(ACCESSION)_$(VERSION).gbk -o $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).fna
-	$(eval EXITCODE=$(shell echo $?))
-ifeq ($(EXITCODE), 0)
-	python $(BIN_DIR)db_log.py --finish=success --logid=$(LOGID)
-else
-	python $(BIN_DIR)db_log.py --finish=failure --logid=$(LOGID)
-	$(JOB_FAILURE) = 1
-endif
+	@echo "Converting to fasta"
+	$(eval LOGID=$(shell python $(BIN_DIR)db_log.py --start --job=$(JOB) --job_uuid=$(JOB_UUID) --jobstep=convert_to_fasta --accession=$(ACCESSION) --version=$(VERSION)))
+	$(shell python convert_gbk_fasta.py -i $(GENOME_DIR)$(ACCESSION)_$(VERSION).gbk -o $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).fna ; if [ $$? -eq 0 ]; then python $(BIN_DIR)db_log.py --finish=success --logid=$(LOGID); else python $(BIN_DIR)db_log.py --finish=failure --logid=$(LOGID); fi)
 
 rnammer: $(ACCESSION)_$(VERSION).rrna
 
 $(ACCESSION)_$(VERSION).rrna: $(ACCESSION)_$(VERSION).fna
-	@echo "running rnammer"
-	$(eval LOGID=$(shell python db_log.py --start --job=$(JOB) --job_uuid=$(JOB_UUID) --jobstep=rnammer --accession=$(ACCESSION) --version=$(VERSION)))
-	$(BIN_DIR)rnammer -S bac -m ssu -f $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).rrna $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).fna
-	$(eval EXITCODE=$(shell echo $?))
-ifeq ($(EXITCODE), 0)
-	python $(BIN_DIR)db_log.py --finish=success --logid=$(LOGID)
-else
-	python $(BIN_DIR)db_log.py --finish=failure --logid=$(LOGID)
-	$(JOB_FAILURE) = 1
-endif
+	@echo "Running rnammer"
+	$(eval LOGID=$(shell python $(BIN_DIR)db_log.py --start --job=$(JOB) --job_uuid=$(JOB_UUID) --jobstep=rnammer --accession=$(ACCESSION) --version=$(VERSION)))
+	$(shell python rnammer -S bac -m ssu -f $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).rrna $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).fna; if [ $$? -eq 0 ]; then python $(BIN_DIR)db_log.py --finish=success --logid=$(LOGID); else python $(BIN_DIR)db_log.py --finish=failure --logid=$(LOGID); fi)
 
 trnascan: $(ACCESSION)_$(VERSION).trna
 
 $(ACCESSION)_$(VERSION).trna: $(ACCESSION)_$(VERSION).fna
-	@echo "running trnascan"
-	$(eval LOGID=$(shell python db_log.py --start --job=$(JOB) --job_uuid=$(JOB_UUID) --jobstep=trnascan --accession=$(ACCESSION) --version=$(VERSION)))
-	/home/people/helen/bin/trnascan-1.4 -o $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).trna $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).fna
-	$(eval EXITCODE=$(shell echo $?))
-ifeq ($(EXITCODE), 0)
-	python $(BIN_DIR)db_log.py --finish=success --logid=$(LOGID)
-else
-	python $(BIN_DIR)db_log.py --finish=failure --logid=$(LOGID)
-	$(JOB_FAILURE) = 1
-endif
+	@echo "Running trnascan"
+	$(eval LOGID=$(shell python $(BIN_DIR)db_log.py --start --job=$(JOB) --job_uuid=$(JOB_UUID) --jobstep=trnascan --accession=$(ACCESSION) --version=$(VERSION)))
+	$(shell /home/people/helen/bin/trnascan-1.4 -o $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).trna $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).fna > /dev/null 2> /dev/null; if [ $$? -eq 0 ]; then python $(BIN_DIR)db_log.py --finish=success --logid=$(LOGID); else python $(BIN_DIR)db_log.py --finish=failure --logid=$(LOGID); fi)
 
 trnascan-stats: $(ACCESSION)_$(VERSION).trna
-	@echo "running trnascan-stats"
+	@echo "Running trnascan-stats"
 	$(eval LOGID=$(shell python $(BIN_DIR)db_log.py --start --job=$(JOB) --job_uuid=$(JOB_UUID) --jobstep=trnascan-stats --accession=$(ACCESSION) --version=$(VERSION)))
-	python $(BIN_DIR)trnascan-stats.py $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).trna
-	$(eval EXITCODE=$(shell echo $?))
-ifeq ($(EXITCODE), 0)
-	python $(BIN_DIR)db_log.py --finish=success --logid=$(LOGID)
-else
-	python $(BIN_DIR)db_log.py --finish=failure --logid=$(LOGID)
-	$(JOB_FAILURE) = 1
-endif
+	$(shell python $(BIN_DIR)trnascan-stats.py $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).trna; if [ $$? -eq 0 ]; then python $(BIN_DIR)db_log.py --finish=success --logid=$(LOGID); else python $(BIN_DIR)db_log.py --finish=failure --logid=$(LOGID); fi)
 
 remove-job:
-ifndef $(SUCCESS)
-	@echo "Done.  Removing job from db"
+	@echo "Removing job from db"
 	$(eval LOGID=$(shell python $(BIN_DIR)db_log.py --start --job=$(JOB) --job_uuid=$(JOB_UUID) --jobstep=remove-job --accession=$(ACCESSION) --version=$(VERSION)))
-ifeq ($(JOB_FAILURE), 0)
-	python $(BIN_DIR)db_log.py --remove_job=success --job_uuid=$(JOB_UUID)
-else
-	python $(BIN_DIR)db_log.py --remove_job=failure --job_uuid=$(JOB_UUID)
-endif
-	$(eval EXITCODE=$(shell echo $?))
-ifeq ($(EXITCODE), 0)
-	python $(BIN_DIR)db_log.py --finish=success --logid=$(LOGID)
-else
-	python $(BIN_DIR)db_log.py --finish=failure --logid=$(LOGID)
-endif
-endif
+	$(shell python $(BIN_DIR)db_log.py --remove_job --job_uuid=$(JOB_UUID); if [ $$? -eq 0 ]; then python $(BIN_DIR)db_log.py --finish=success --logid=$(LOGID); else python $(BIN_DIR)db_log.py --finish=failure --logid=$(LOGID); fi)
 
 clean:
 	rm $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).fna $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).rrna $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).trna
