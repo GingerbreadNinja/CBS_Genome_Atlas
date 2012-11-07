@@ -18,6 +18,7 @@ Coding work to do to complete Milestone 2
 - add other statistic calculations
 - go through output and make sure it is descriptive, useful, properly split between .err and .out
 - job is not removed from db -- mark entire job as in error
+- trnastats-scan needs to mark whether it is on the complementary strand or not
 
 
 Statistics to calculate
