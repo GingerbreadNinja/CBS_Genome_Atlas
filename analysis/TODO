@@ -1,24 +1,27 @@
 
 Coding work to do to complete Milestone 2
 
-- jobsteps should update database with errors when they error out!
+- store length of replicon in replicon table
+- calculate percent at and store in replicon table
+- view for number of replicons and total genome length, percent at
+
+- run for all in test accession file
+- run rrnas for all in test accession file
+
+- look at rnammer updates
+
 - accession, version in db should have the pair be the reference to replicon table
 - database table jobstep should include the version of the program (trnascan, rnammer hmmer, etc) that is being run
 - write tests for Makefile
 - write tests for log insertion script
-- null accession numbers are being written into trna table
 - db updates moved to main db module
 - we won't have the new genomes processed until the next day because it is looking at the modify date, not datetime; is this a problem?
-- calculate sequence length
-- rnammer running with hmmer 3
+
 - validation heuristics
 - mark genomes as valid if pass heuristics
+
 - scope reporting system
 - scope mechanism to grant/deny manual approval for genomes
-- add other statistic calculations
-- go through output and make sure it is descriptive, useful, properly split between .err and .out
-- job is not removed from db -- mark entire job as in error
-- trnastats-scan needs to mark whether it is on the complementary strand or not
 
 
 Statistics to calculate
