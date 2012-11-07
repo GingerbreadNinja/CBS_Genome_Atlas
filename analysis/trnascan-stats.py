@@ -5,7 +5,7 @@ import re;
 import os;
 
 
-debug = 1
+debug = 0
 
 def usage():
     sys.stderr.write('usage: ' + sys.argv[0] + ' CP000020_2.trna');
