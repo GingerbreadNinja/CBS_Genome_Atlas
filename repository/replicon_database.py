@@ -31,6 +31,10 @@ class RepliconDB():
         o.write(decoded)
         o.close()
         self.__logger.debug('Finished writing genbank file %s', filename)
+        
+    def __exists(self, savedir, name):
+        p = os.path.join( savedir, name + '.gbk' )
+        return os.path.exists(p)
     
     def __generate_sql_1(self, list_length):
         sql = 'SELECT locus, uncompress(data_z) FROM raw_ff WHERE (locus, version) IN (SELECT locus, MAX(version) FROM raw_ff GROUP BY locus) AND locus IN ( %s )'
@@ -65,6 +69,8 @@ class RepliconDB():
             return [result[0]]
         
     def __get_genbank_2(self, accession_number_version, savedir):
+        if( self.__exists( savedir, str(accession_number_version[0])+'_'+str(accession_number_version[1])) ):
+            return []
         sql = self.__generate_sql_2(1)
         self.__logger.debug('Performing SQL Query: \'%s\'', sql)
         status = self.__curs.execute(sql, accession_number_version)
@@ -82,7 +88,7 @@ class RepliconDB():
     
     def __get_genbank_1_many(self, accession_number_list, savedir):
         result_set = []
-        accession_numbers = tuple(accession_number_list)
+        accession_numbers = [ ac for ac in accession_number_list if (not self.__exists(savedir, str(ac)))]
         sql = self.__generate_sql_1(len(accession_numbers))
         self.__logger.debug('Performing SQL Query: \'%s\'', sql) 
         status = self.__curs.execute(sql, accession_numbers)
@@ -102,7 +108,8 @@ class RepliconDB():
     def __get_genbank_2_many(self, accession_number_version_list, savedir):
         result_set = []
         # I know this is unreadable but it's (one of) the fastest way(s) to flatten these things =\
-        items = [item for accession_number_version in accession_number_version_list for item in accession_number_version]
+        temp = ( item for item in accession_number_version_list if (not self.__exists(savedir, str( item[0])+'_'+str( item[1]))))
+        items = [item for accession_number_version in temp for item in accession_number_version]
         sql = self.__generate_sql_2(len(accession_number_version_list))
         self.__logger.debug('Performing SQL Query: \'%s\'', sql)
         status = self.__curs.execute(sql, items)
@@ -112,7 +119,7 @@ class RepliconDB():
             try:
                 self.__write_output(savedir, str(result[0])+'_'+str(result[1]), result[2])
             except Exception, e:
-                self.__logger.warn('Error while writing output for accession %s', str(result[0])+'.'+str(result[1]))
+                self.__logger.warn('Error while writing output for accession %s', str(result[0])+'_'+str(result[1]))
                 self.__logger.debug(e)
             else:
                 result_set.append((str(result[0]),result[1]))

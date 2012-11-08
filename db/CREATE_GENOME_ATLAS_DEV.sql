@@ -4,30 +4,21 @@
 
 USE steve_private;
 
-CREATE TABLE taxonomy
+CREATE TABLE bioproject
 (
-    tax_id INTEGER PRIMARY KEY,
-    taxon_name VARCHAR(255) NOT NULL,
-    left_id INTEGER,
-    depth INTEGER NOT NULL DEFAULT 0,
-    FOREIGN KEY (left_id) REFERENCES taxonomy (tax_id)    
+    bioproject_id INTEGER PRIMARY KEY,
+    bioproject_status ENUM('COMPLETE','SCAFFOLDS_CONTIGS','NO_DATA','SRA_TRACES'),
+    release_date DATE,
+    modify_date DATE
 );
 
 CREATE TABLE genome
 (
     genome_id INTEGER PRIMARY KEY AUTO_INCREMENT,
-    tax_id INTEGER REFERENCES taxonomy (tax_id), -- If it's null that means we need to look it up!
+    tax_id INTEGER, -- If it's null that means we need to look it up!
     genome_name VARCHAR(255) NOT NULL,
-    genome_validity ENUM('ONLINE', 'VALID','WARNINGS','INVALID', 'RECONCILED') -- Added reconciled so that we don't continuously flag a project and mark it as warnings/errors for now
-);
-
-CREATE TABLE bioproject
-(
-    genome_id INTEGER references genome (genome_id), -- Left this here (one join to get to project table joined with bioproject rather than two...). Willing to change to separate table if desired
-    bioproject_id INTEGER PRIMARY KEY,
-    bioproject_status ENUM('COMPLETE','SCAFFOLDS_CONTIGS','NO_DATA','SRA_TRACES'),
-    release_date DATE,
-    modify_date DATE
+    genome_validity ENUM('ONLINE', 'VALID','WARNINGS','INVALID', 'RECONCILED'), -- Added reconciled so that we don't continuously flag a project and mark it as warnings/errors for now
+    bioproject_id INTEGER UNIQUE REFERENCES bioproject (bioproject_id)
 );
 
 /* REPLICON

@@ -79,17 +79,24 @@ class CSVBioProjectParser():
                         _csv_release_date, _csv_modify_date, _csv_status, _csv_center]
     
     @staticmethod
-    def csv_parse_stream(parseable):
+    def csv_parse_stream(parseable, logger):
         """
         Parses a whole CSV stream of NCBI-BioProjects. If you want this to parse a string in memory,
         use stringio to wrap your string for processing.
         """
+        logger.info('Building Dict-Reader for parsing %s', parseable)
         reader = DictReader(parseable, dialect='excel-tab')#We do not pass the header_list because we expect it to already be in the file
         bioprojects = []
+        i = 0
         for row in reader:
             #parse a single row of information
-            bioproject = CSVBioProjectParser._csv_parse_row(row)
-            bioprojects.append(bioproject)        
+            try:
+                bioproject = CSVBioProjectParser._csv_parse_row(row)
+            except:
+                logger.warn('Error parsing row %i from %s', i, parseable)
+            bioprojects.append(bioproject)
+            i += 1
+        logger.info('Parsed %i bioprojects from %i rows', len(bioprojects), i)
         return bioprojects
     
     @staticmethod

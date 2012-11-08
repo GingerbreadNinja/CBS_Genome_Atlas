@@ -7,7 +7,12 @@ import copy
 
 class Settings():    
     _default_filename = '../config/default.cfg'
-    _default_settings = {'entrez': {
+    _default_settings = {'replicon': {
+                          'savedir': None,
+                          'taxonomy':None,
+                          'bioproject':None
+                         },
+                         'entrez': {
                           'max_attempts': 10,
                           'max_lookups': 50,
                           'email':'steve@cbs.dtu.dk',

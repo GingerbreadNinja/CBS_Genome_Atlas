@@ -47,6 +47,7 @@ class EFetchManager():
             raise TypeError('Expected (non-empty) string for handler\'s db')
         
         output = tempfile.TemporaryFile()
+        handle = None
         try:
             handle = Bio.Entrez.efetch(db,**request_dict)
             output.write(handle.read())

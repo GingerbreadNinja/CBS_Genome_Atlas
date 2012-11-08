@@ -137,3 +137,29 @@ class GenomeDB():
         else:
             self.__conn.commit()
             return res
+            
+    def insert_accession(self, bioproject_id, accession, version, replicon_type='CHROMOSOME'):
+        statement = '''INSERT IGNORE INTO replicon (accession, version, genome_id, replicon_type) VALUES (%s, %s, (SELECT genome_id FROM genome WHERE bioproject_id=%s), %s)'''
+        t = (accession, version, bioproject_id, replicon_type);
+        self.__conn.execute( statement, t );
+
+    def insert_accessions(self, bioproject_list):
+        statement = '''INSERT IGNORE INTO replicon (accession, version, genome_id, replicon_type) VALUES (%s, %s, (SELECT genome_id FROM genome WHERE bioproject_id=%s), %s)'''
+        t_list = []
+        errors = []
+        for bp in bioproject_list:
+            for p in bp.insdc_plasmids:
+                temp = p.split('.',1)
+                if( len(temp) > 1 ):
+                    t_list.append( (temp[0], temp[1], bp.bioproject_id, 'PLASMID') )
+                else:
+                    errors.append(bp.bioproject_id)
+            for c in bp.insdc_chromosomes:
+                temp = c.split('.',1)
+                if( len(temp) > 1 ):
+                    t_list.append( (temp[0], temp[1], bp.bioproject_id, 'CHROMOSOME') )
+                else:
+                    errors.append(bp.bioproject_id)
+        self.__curs.executemany(statement, t_list)
+        self.__conn.commit()
+        return errors

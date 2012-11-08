@@ -1,7 +1,6 @@
-
 from settings import Settings
 from ftpget import FTP_Get
-from ncbi import bioproject, efetch_manager
+from ncbi import bioproject, efetch_manager, get_gbk
 from repository import genome_database, replicon_database
 
 def syncronize():
@@ -45,7 +44,7 @@ def syncronize():
     dl_list = []
     for bp in complete_list:
         tup = genome_db.get_bioproject_by_id(bp.bioproject_id)
-        if(tup and bp.modify_date > tup[3]):
+        if(tup and bp.modify_date.date() > tup[3]):
             dl_list.append(bp)
         elif( not tup ):
             dl_list.append(bp)
@@ -72,19 +71,37 @@ def syncronize():
     db_logger.info('Updating taxonomy for found genomes')
     genome_db.update_genomes_taxonomy_by_bioprojects( full_res.values() )
     
-    logger.info('Downloading accessions')
+    db_logger.info('Inserting accessions for found genomes')
+    errors = genome_db.insert_accessions( full_res.values() )
     
-    acc_ver = []
-    for bp in full_res.values:
-        for acc in bp.insdc_chromosomes:
-            acc_ver.append( acc.split('.',1) )
-        for acc in bp.insdc_plasmids:
-            acc_ver.append( acc.split('.',1) )
-        
+    if( errors ):
+        db_logger.warn('Errors inserting accessions into db for bioprojects: %s', errors )
+        genome_db.mark_genome_as_warning_by_bioproject_ids_where_not_validated( errors )
+        for k in errors:
+            full_res.pop( k, 1 ) #so no key errors are thrown
+    
+    savedir = s['replicon']['savedir']
     replicon_db = replicon_database.RepliconDB( logger.getChild('RepliconDB') )
-    res = replicon_db.get_genbank_accession_version(acc_ver, s['replicon']['savedir'])
-    logger.info('Successfully downloaded %i new accessions', len(res))
-    logger.debug('Downloaded accessions: %s', res)
+    replicon_db.connect(**s['mysql_replicon'])
+    
+    logger.info('Downloading accessions')
+    online_gbk = get_gbk.GetGBK( logger.getChild('NCBI-Replicon'), s['entrez']['email'])
+
+    for bp in full_res.values():
+        for p in bp.insdc_plasmids:
+            if(replicon_db.get_genbank_accession_version( [ p.split('.',1) ], savedir )):
+                logger.info('Downloaded accession %s for bioproject %i', p, bp.bioproject_id )
+            elif(not online_gbk.get_gbk(p.split('.',1), savedir)):
+                logger.warn('Error downloading accession %s for bioproject %i', p, bp.bioproject_id)
+                genome_db.mark_genome_as_warnings_by_accession(p)
+        for c in bp.insdc_chromosomes:
+            if(replicon_db.get_genbank_accession_version( [ c.split('.',1) ], savedir )):
+                logger.info('Downloaded accession %s for bioproject %i', c, bp.bioproject_id )
+            elif(not online_gbk.get_gbk(c.split('.',1), savedir)):
+                logger.warn('Error downloading accession %s for bioproject %i', c, bp.bioproject_id)
+                genome_db.mark_genome_as_warnings_by_accession(c)
+    genome_db.close()
+    replicon_db.close()
     
 if __name__ == '__main__':
     syncronize()
