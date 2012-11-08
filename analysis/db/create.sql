@@ -90,6 +90,8 @@ create or replace view accession_version_by_name as select bioproject.bioproject
 
 create or replace view log as select jobstep_log.accession, jobstep_log.version, jobstep_name as step_name, jobstep_log.status as step_status, jobstep_log.start_time as step_start_time, job_name, jobstep_log.job_uuid, active_job.status as job_status, active_job.submission_time as job_start_time from active_job, jobstep_log, job, jobstep where active_job.job_uuid = jobstep_log.job_uuid and job.job_id= jobstep_log.job_id and jobstep.jobstep_id=jobstep_log.jobstep_id;
 
+create or replace view genome_stats as select genome.genome_id, genome_name, count(replicon.accession) as replicon_count, group_concat(concat(replicon.accession, "_", replicon.version)) as accessions, sum(stat_size_bp) as total_length, avg(stat_perc_at) as percent_at from genome, replicon where genome.genome_id = replicon.genome_id and stat_size_bp is not null group by genome.genome_id;
+
 
 create table trna
 (

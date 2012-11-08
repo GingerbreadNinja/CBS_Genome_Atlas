@@ -1,14 +1,15 @@
 
 Coding work to do to complete Milestone 2
 
-- store length of replicon in replicon table
-- calculate percent at and store in replicon table
-- view for number of replicons and total genome length, percent at
+- add environment and abundance, doubling time, growth temp, number genes
 
-- run for all in test accession file
-- run rrnas for all in test accession file
+- look at errors from small run and make sure they are being recorded properly
 
 - look at rnammer updates
+
+- perc AT is stored as int -- needs more precision?
+- db should store whether the gbk file is on disk
+- db should store the errors from each step
 
 - accession, version in db should have the pair be the reference to replicon table
 - database table jobstep should include the version of the program (trnascan, rnammer hmmer, etc) that is being run
@@ -35,8 +36,12 @@ Statistics to calculate
 
 
 Problems with genomes
+send dave accession numbers with errors
+
+
+vibrio -- CP000626 and CP000627 are flipped
 
 BX571656_1.gbk is marked as complete, but does not have a sequence
 
-FP929051_1.trna not parsing correctly -- AA: Sup?
+FP929051_1.trna not parsing correctly -- AA: Sup -- added to database
 
