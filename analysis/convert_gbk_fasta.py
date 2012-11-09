@@ -24,6 +24,7 @@ def convert(inputfile, outputfile):
       records = 0
       replicon_length = 0
       percent_gc = 0
+      score = 1.0 # innocent until proven guilty
       for record in sequences:
          name = record.id
          accession = name[0:8]
@@ -36,6 +37,22 @@ def convert(inputfile, outputfile):
          sys.stderr.write("record length: " + str(len(record)) + "\n")
          sys.stderr.write("accession: " + accession + "\n")
          sys.stderr.write("version: " + version + "\n")
+
+         number_genes = 0
+
+         for annotation in record.features:
+            if annotation.type == "gene":
+                number_genes = number_genes + 1
+
+         sys.stderr.write("number of genes: " + str(number_genes) + "\n")
+
+         number_a = record.seq.count("A")
+         number_c = record.seq.count("C")
+         number_g = record.seq.count("G")
+         number_t = record.seq.count("T")
+
+         fraction_nonstandard = (number_a + number_c + number_g + number_t) / replicon_length
+         score = score - 10 * (1 - fraction_nonstandard) 
 
          if len(record.seq) < 1:  #TODO this doesn't actually work to get the length of teh nucleotide sequence 
             sys.stderr.write("convert_to_fasta: Found record with length less than 1:" + str(len(record.seq)) + "\n")
@@ -53,7 +70,13 @@ def convert(inputfile, outputfile):
 
       if records > 1:
          sys.stderr.write('convert_to_fasta: Found more than 1 locus\n')
-         sys.exit(1)
+         while records - (25 * genome_length / 1000000) > 0:
+            score = score - 0.2 #score reduces by 0.2 for every 25 contigs per megabase
+       
+      if score < 0.1:
+         score = 0.1
+
+      sys.stderr.write("score is: " + str(score) + "\n")
       output_handle.close()
       input_handle.close()
       #SeqIO.convert(inputfile, "genbank", outputfile, "fasta") # silently converts empty files to crap!

@@ -44,7 +44,7 @@ CREATE TABLE replicon
     stat_16s_count INTEGER, -- NULL allowed so we can check what needs to be run
     stat_23s_count INTEGER, -- NULL allowed so we can check what needs to be run
     stat_size_bp INTEGER, -- NULL allowed so we can check what needs to be run
-    stat_perc_at DECIMAL, -- NULL allowed so we can check what needs to be run
+    stat_perc_at DECIMAL(5,2), -- NULL allowed so we can check what needs to be run
     stat_number_of_genes INTEGER, -- NULL allowed so we can check what needs to be run
     replicon_type ENUM('CHROMOSOME','PLASMID') NOT NULL
 );
