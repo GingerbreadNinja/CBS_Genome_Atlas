@@ -3,8 +3,6 @@ Coding work to do to complete Milestone 2
 
 - add environment and abundance, doubling time, growth temp, number genes
 
-- look at errors from small run and make sure they are being recorded properly
-
 - look at rnammer updates
 
 - perc AT is stored as int -- needs more precision?

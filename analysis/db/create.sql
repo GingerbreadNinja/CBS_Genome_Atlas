@@ -90,8 +90,15 @@ create or replace view accession_version_by_name as select bioproject.bioproject
 
 create or replace view log as select jobstep_log.accession, jobstep_log.version, jobstep_name as step_name, jobstep_log.status as step_status, jobstep_log.start_time as step_start_time, job_name, jobstep_log.job_uuid, active_job.status as job_status, active_job.submission_time as job_start_time from active_job, jobstep_log, job, jobstep where active_job.job_uuid = jobstep_log.job_uuid and job.job_id= jobstep_log.job_id and jobstep.jobstep_id=jobstep_log.jobstep_id;
 
-create or replace view genome_stats as select genome.genome_id, genome_name, count(replicon.accession) as replicon_count, group_concat(concat(replicon.accession, "_", replicon.version)) as accessions, sum(stat_size_bp) as total_length, avg(stat_perc_at) as percent_at from genome, replicon where genome.genome_id = replicon.genome_id and stat_size_bp is not null group by genome.genome_id;
+-- this doesn't do the right thing -- status is not correct
+select accession, version, status, submission_time from active_job where (accession, submission_time) in (select accession, max(submission_time) from active_job group by accession) order by accession
 
+create or replace view genome_stats as select genome.genome_id, genome_name, count(replicon.accession) as replicon_count, group_concat(concat(replicon.accession, "_", replicon.version)) as accessions, sum(stat_size_bp) as total_length, sum(stat_perc_at * stat_size_bp)/sum(stat_size_bp) as percent_at from genome, replicon where genome.genome_id = replicon.genome_id and stat_size_bp is not null group by genome.genome_id;
+
+
+-- does not work as expected: pulling in trnas duplicates rows, and distinct isn't enough to get rid of them in the sums.
+-- will need to make other temp tables to separate chromosome and plasmid counts as well
+-- create or replace view genome_stats as select genome.genome_id, genome_name, count(replicon.accession) as replicon_count, group_concat(distinct(concat(replicon.accession, "_", replicon.version))) as accessions, sum(stat_size_bp) as total_length, sum(stat_perc_at * stat_size_bp)/sum(stat_size_bp) as percent_at, count(trna.id) as trna_count from genome, replicon, trna where genome.genome_id = replicon.genome_id and trna.accession = replicon.accession and stat_size_bp is not null group by genome.genome_id;
 
 create table trna
 (
