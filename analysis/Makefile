@@ -39,7 +39,8 @@ endif
 
 all: single_genome
 
-single_genome: convert_to_fasta trnascan trnascan-stats remove-job
+single_genome: convert_to_fasta 
+#trnascan trnascan-stats remove-job
 
 convert_to_fasta: $(ACCESSION)_$(VERSION).fna
 

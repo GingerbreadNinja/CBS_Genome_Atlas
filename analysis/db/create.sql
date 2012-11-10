@@ -93,7 +93,52 @@ create or replace view log as select jobstep_log.accession, jobstep_log.version,
 -- this doesn't do the right thing -- status is not correct
 select accession, version, status, submission_time from active_job where (accession, submission_time) in (select accession, max(submission_time) from active_job group by accession) order by accession
 
-create or replace view genome_stats as select genome.genome_id, genome_name, count(replicon.accession) as replicon_count, group_concat(concat(replicon.accession, "_", replicon.version)) as accessions, sum(stat_size_bp) as total_length, sum(stat_perc_at * stat_size_bp)/sum(stat_size_bp) as percent_at from genome, replicon where genome.genome_id = replicon.genome_id and stat_size_bp is not null group by genome.genome_id;
+create or replace view plasmid as select genome_id, coalesce(count(replicon.accession), 0) as plasmid_count from replicon where replicon_type = "PLASMID" group by genome_id;
+create or replace view chromosome as select genome_id, coalesce(count(replicon.accession), 0) as chromosome_count from replicon where replicon_type = "CHROMOSOME" group by genome_id;
+create or replace view contig as select genome_id, coalesce(sum(stat_number_of_contigs), 0) as contig_count from replicon group by genome_id;
+create or replace view nonstd_bases as select genome_id, coalesce(sum(stat_number_nonstd_bases), 0) as nonstd_count from replicon group by genome_id;
+
+create or replace view genome_stats as 
+select 
+replicon.genome_id, 
+genome.tax_id, 
+bioproject_id, 
+genome_name, 
+greatest(0.1, 1 - stat_number_nonstd_bases/sum(stat_size_bp)*1000 - 0.2 * (((coalesce(contig.contig_count, 0) / count(replicon.accession)) - 1) * (((coalesce(contig.contig_count, 0) - count(replicon.accession))* 1000000) / (25 * sum(stat_size_bp))))) as score,
+coalesce(chromosome.chromosome_count, 0) as chromosome_count, 
+coalesce(plasmid.plasmid_count, 0) as plasmid_count,
+count(replicon.accession) as replicon_count,
+coalesce(contig.contig_count, 0) as contig_count,
+sum(stat_size_bp) as total_bp, 
+stat_number_nonstd_bases as nonstd_bp,
+stat_number_nonstd_bases/sum(stat_size_bp)*100 as percent_nonstd_bp,
+sum(stat_number_of_genes) as gene_count,
+sum(stat_perc_at * stat_size_bp)/sum(stat_size_bp) as percent_at, 
+group_concat(concat(replicon.accession, "_", replicon.version)) as accessions 
+from replicon 
+left join plasmid on replicon.genome_id = plasmid.genome_id 
+left join chromosome on replicon.genome_id = chromosome.genome_id 
+left join contig on replicon.genome_id = contig.genome_id
+left join genome on genome.genome_id = replicon.genome_id 
+group by replicon.genome_id;
+
+/* perhaps faster, but wrong version
+create or replace view genome_stats as 
+select 
+genome.genome_id, 
+genome.tax_id, 
+bioproject_id, 
+genome_name, 
+chromosome_count, 
+plasmid_count, 
+count(replicon.accession) as replicon_count, 
+contig_count,
+sum(stat_size_bp) as total_length, 
+sum(stat_perc_at * stat_size_bp)/sum(stat_size_bp) as percent_at, 
+nonstd_count/total_length as perc_nonstd_bases,
+group_concat(concat(replicon.accession, "_", replicon.version)) as accessions 
+from genome, replicon, plasmid, chromosome, contig where genome.genome_id = replicon.genome_id and genome.genome_id = plasmid.genome_id and genome.genome_id = chromosome.genome_id and genome.genome_id = contig.genome_id and stat_size_bp is not null group by genome.genome_id;
+*/
 
 
 -- does not work as expected: pulling in trnas duplicates rows, and distinct isn't enough to get rid of them in the sums.
