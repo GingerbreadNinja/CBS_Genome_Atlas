@@ -100,6 +100,18 @@ create or replace view chromosome as select genome_id, coalesce(count(replicon.a
 create or replace view contig as select genome_id, coalesce(sum(stat_number_of_contigs), 0) as contig_count from replicon group by genome_id;
 create or replace view nonstd_bases as select genome_id, coalesce(sum(stat_number_nonstd_bases), 0) as nonstd_count from replicon group by genome_id;
 
+create or replace view trna_count as select genome_id, count(*) as trna_count from trna, replicon where trna.accession = replicon.accession and trna.version = replicon.version group by genome_id;
+
+create or replace view rrna_count as select genome_id, count(*) as rrna_count from rrna, replicon where rrna.accession = replicon.accession and rrna.version = replicon.version group by genome_id;
+
+create table genome_external_data (
+    id INTEGER PRIMARY KEY AUTO_INCREMENT,
+    genome_id INTEGER,
+    doubling_time_minutes INTEGER,
+    optimal_growth_temp INTEGER,
+    FOREIGN KEY (genome_id) REFERENCES genome (genome_id)
+);
+
 create or replace view genome_stats as 
 select 
 replicon.genome_id, 
