@@ -39,8 +39,8 @@ endif
 
 all: single_genome
 
-single_genome: convert_to_fasta 
-#trnascan trnascan-stats remove-job
+single_genome: rnammer-stats
+#convert_to_fasta trnascan trnascan-stats remove-job
 
 convert_to_fasta: $(ACCESSION)_$(VERSION).fna
 
@@ -56,6 +56,12 @@ $(ACCESSION)_$(VERSION).rrna: $(ACCESSION)_$(VERSION).fna
 	$(eval LOGID=$(shell python $(BIN_DIR)db_log.py --start --job=$(JOB) --job_uuid=$(JOB_UUID) --jobstep=rnammer --accession=$(ACCESSION) --version=$(VERSION)))
 	$(shell python rnammer -S bac -m ssu -f $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).rrna $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).fna; if [ $$? -eq 0 ]; then python $(BIN_DIR)db_log.py --finish=success --logid=$(LOGID); else python $(BIN_DIR)db_log.py --finish=failure --logid=$(LOGID); fi)
 
+#rnammer-stats: $(ACCESSION)_$(VERSION).rrna2  UNCOMMENT this when rnammer is running on cge
+rnammer-stats: 
+	@echo "Running stats for rnammer"
+	$(eval LOGID=$(shell python $(BIN_DIR)db_log.py --start --job=$(JOB) --job_uuid=$(JOB_UUID) --jobstep=rnammer-stats --accession=$(ACCESSION) --version=$(VERSION)))
+	$(shell python rnammer_stats.py $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).rrna2 > /dev/null; if [ $$? -eq 0 ]; then python $(BIN_DIR)db_log.py --finish=success --logid=$(LOGID); else python $(BIN_DIR)db_log.py --finish=failure --logid=$(LOGID); fi)
+
 trnascan: $(ACCESSION)_$(VERSION).trna
 
 $(ACCESSION)_$(VERSION).trna: $(ACCESSION)_$(VERSION).fna
@@ -66,7 +72,7 @@ $(ACCESSION)_$(VERSION).trna: $(ACCESSION)_$(VERSION).fna
 trnascan-stats: $(ACCESSION)_$(VERSION).trna
 	@echo "Running trnascan-stats"
 	$(eval LOGID=$(shell python $(BIN_DIR)db_log.py --start --job=$(JOB) --job_uuid=$(JOB_UUID) --jobstep=trnascan-stats --accession=$(ACCESSION) --version=$(VERSION)))
-	$(shell python $(BIN_DIR)trnascan-stats.py $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).trna; if [ $$? -eq 0 ]; then python $(BIN_DIR)db_log.py --finish=success --logid=$(LOGID); else python $(BIN_DIR)db_log.py --finish=failure --logid=$(LOGID); fi)
+	$(shell python $(BIN_DIR)trnascan/stats.py $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).trna; if [ $$? -eq 0 ]; then python $(BIN_DIR)db_log.py --finish=success --logid=$(LOGID); else python $(BIN_DIR)db_log.py --finish=failure --logid=$(LOGID); fi)
 
 remove-job:
 	@echo "Removing job from db"
