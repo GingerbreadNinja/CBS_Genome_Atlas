@@ -48,18 +48,28 @@ def ask_user_about_match(organism_name, partial):
     if rows:
         for r in rows:
             genome_id, genome_name = r
+            print str(genome_id) + "   " + genome_name
             input = ""
-            while input != 'y' or input != 'n':
-                input = raw_input("Does\t" + organism_name + "\t=\t" + genome_name + "\ny/n> ")
-                if input == "y":
-                    print "writing data to db"
-                    return [genome_id]
-                if input == "n":
-                    print "skipping"
-                    break
-                if input == "a":
-                    print "skipping all"
-                    return None
+            #while input != 'y' or input != 'n':
+            input = raw_input("Select genome_ids that match > ")
+            print "got input: " + input
+
+
+            r_genome_ids = re.compile("([0-9]+)(?:(\s[0-9]+))*")
+            m = r_genome_ids.match(input)
+            if m is not None:
+                return m.group(0)   ##XXX this does not return each group as an element in the array, it returns each digit as an element in the array
+
+                #input = raw_input("Does\t" + organism_name + "\t=\t" + genome_name + "\ny/n/a> ")
+                #if input == "y":
+                #    print "writing data to db"
+                #    return [genome_id]
+                #if input == "n":
+                #    print "skipping"
+                #    break
+                #if input == "a":
+                #    print "skipping all"
+                #    return None
     else:
         return None
 
@@ -94,18 +104,20 @@ def get_genome_ids(organism_name):
         if result is not None:
             return result
         else:
-            # try stripping off the last block and try to match
+            # try stripping off the last block successively and try to match
+            m = ""
             r = re.compile(r'(.*) [^ ]')
-            m = r.match(organism_name)
-            if m is not None:
-                partial = m.group(1) + "%"
-                print "name trimmed to " + partial
-                result = ask_user_about_match(organism_name, partial)
-                if result is not None:
-                    return result;
-                else: 
-                    print "nothing looks at all similar"
-                    return None
+            while m is not None:
+                m = r.match(organism_name)
+                if m is not None:
+                    partial = m.group(1) + "%"
+                    print "name trimmed to " + partial
+                    result = ask_user_about_match(organism_name, partial)
+                    if result is not None:
+                        return result;
+                    else: 
+                        print "nothing looks at all similar"
+                        return None
                 
                     
 def parse_data(lines):

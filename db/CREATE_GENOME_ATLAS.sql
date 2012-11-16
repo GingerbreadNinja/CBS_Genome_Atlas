@@ -37,7 +37,8 @@ CREATE TABLE bioproject
  */
 CREATE TABLE replicon
 (
-    accession VARCHAR(255) PRIMARY KEY, -- Left version field separate
+    replicon_id INTEGER PRIMARY KEY AUTO_INCREMENT,
+    accession VARCHAR(255), -- Left version field separate
     genome_id INTEGER NOT NULL REFERENCES genome (genome_id), -- I don't think nulls should ever happen here..?
     version INTEGER NOT NULL,
     stat_5s_count INTEGER, -- NULL allowed so we can check what needs to be run
