@@ -27,6 +27,7 @@ create table jobstep_log
     FOREIGN KEY (accession) REFERENCES replicon (accession)
 );
 
+
 -- logs every job that has been submitted to the job queue
 -- jobs should be removed from this table when we have their output
 create table active_job
@@ -90,7 +91,9 @@ insert into job_jobsteps( job_id, jobstep_id) values (1, 6);
 
 create or replace view accession_version_by_name as select bioproject.bioproject_id, modify_date, concat(accession, "_", version) as av, accession, version, replicon_type, genome_name from genome, replicon, bioproject where genome.bioproject_id = bioproject.bioproject_id and genome.genome_id=replicon.genome_id;
 
-create or replace view log as select jobstep_log.accession, jobstep_log.version, jobstep_name as step_name, jobstep_log.status as step_status, jobstep_log.start_time as step_start_time, job_name, jobstep_log.job_uuid, active_job.status as job_status, active_job.submission_time as job_start_time from active_job, jobstep_log, job, jobstep where active_job.job_uuid = jobstep_log.job_uuid and job.job_id= jobstep_log.job_id and jobstep.jobstep_id=jobstep_log.jobstep_id;
+create or replace view log as select jobstep_log.log_id, jobstep_log.accession, jobstep_log.version, jobstep_name as step_name, jobstep_log.status as step_status, jobstep_log.start_time as step_start_time, job_name, jobstep_log.job_uuid, active_job.status as job_status, active_job.submission_time as job_start_time from active_job, jobstep_log, job, jobstep where active_job.job_uuid = jobstep_log.job_uuid and job.job_id= jobstep_log.job_id and jobstep.jobstep_id=jobstep_log.jobstep_id;
+
+create or replace view displaygenome_jobs as select * from log;
 
 -- this doesn't do the right thing -- status is not correct
 select accession, version, status, submission_time from active_job where (accession, submission_time) in (select accession, max(submission_time) from active_job group by accession) order by accession
@@ -102,7 +105,12 @@ create or replace view nonstd_bases as select genome_id, coalesce(sum(stat_numbe
 
 create or replace view trna_count as select genome_id, count(*) as trna_count from trna, replicon where trna.accession = replicon.accession and trna.version = replicon.version group by genome_id;
 
-create or replace view rrna_count as select genome_id, count(*) as rrna_count from rrna, replicon where rrna.accession = replicon.accession and rrna.version = replicon.version group by genome_id;
+--create or replace view rrna_count as select genome_id, count(*) as rrna_count from rrna, replicon where rrna.accession = replicon.accession and rrna.version = replicon.version group by genome_id;
+
+create or replace view rrna_count as select genome_id, count(*) as rrna_count, 100*avg((2*length(sequence) - length(replace(sequence, 'g', '')) - length(replace(sequence, 'c', ''))) / length(sequence)) AS rrna_percent_at from rrna, replicon where rrna.accession = replicon.accession and rrna.version = replicon.version group by genome_id;
+
+create or replace view rrna_aggregate as select accession, avg((2*length(sequence) - length(replace(sequence, 'g', '')) - length(replace(sequence, 'c', ''))) / length(sequence)) AS avg_percentat from rrna group by accession;
+
 
 create table genome_external_data (
     id INTEGER PRIMARY KEY AUTO_INCREMENT,
@@ -114,9 +122,10 @@ create table genome_external_data (
 
 create or replace view genome_stats as 
 select 
+bioproject.modify_date,
 replicon.genome_id, 
 genome.tax_id, 
-bioproject_id, 
+genome.bioproject_id, 
 genome_name, 
 greatest (0.1, 1+.1*(0-ceiling(100*sum(stat_number_nonstd_bases)/sum(stat_size_bp)))) as score_nonstd,
 coalesce(chromosome.chromosome_count, 0) as chromosome_count, 
@@ -131,14 +140,77 @@ sum(stat_size_bp) as total_bp,
 stat_number_nonstd_bases as nonstd_bp,
 stat_number_nonstd_bases/sum(stat_size_bp)*100 as percent_nonstd_bp,
 sum(stat_number_of_genes) as gene_count,
-sum(stat_perc_at * stat_size_bp)/sum(stat_size_bp) as percent_at, 
-group_concat(concat(replicon.accession, "_", replicon.version)) as accessions 
+format(1000*sum(stat_number_of_genes) / sum(stat_size_bp),3) as gene_density,
+format(sum(stat_perc_at * stat_size_bp)/sum(stat_size_bp),1) as percent_at, 
+group_concat(concat(replicon.accession, "_", replicon.version) SEPARATOR ' ') as accessions,
+rrna_count,
+trna_count
 from replicon 
-left join plasmid on replicon.genome_id = plasmid.genome_id 
-left join chromosome on replicon.genome_id = chromosome.genome_id 
-left join contig on replicon.genome_id = contig.genome_id
-left join genome on genome.genome_id = replicon.genome_id 
+left outer join plasmid on replicon.genome_id = plasmid.genome_id 
+left outer join chromosome on replicon.genome_id = chromosome.genome_id 
+left outer join contig on replicon.genome_id = contig.genome_id
+left outer join genome on genome.genome_id = replicon.genome_id 
+left outer join trna_count on genome.genome_id = trna_count.genome_id
+left outer join rrna_count on genome.genome_id = rrna_count.genome_id
+left outer join bioproject on genome.bioproject_id = bioproject.bioproject_id
 group by replicon.genome_id;
+
+create or replace view displaygenome_genome_stats as select * from genome_stats;
+
+
+
+
+create table tax_path (
+    path_id INTEGER PRIMARY KEY AUTO_INCREMENT,
+    tax_id INTEGER NOT NULL,
+    accession VARCHAR(20) NOT NULL,
+    version INTEGER NOT NULL
+);
+
+create table tax_stats (
+    tax_id INTEGER PRIMARY KEY,
+    modify_date DATE,
+    genome_id INTEGER,
+    bioproject_id INTEGER,
+    genome_name VARCHAR(255),
+    score_nonstd_sum INTEGER,
+    chromosome_count INTEGER,
+    plasmid_count INTEGER, 
+    replicon_count INTEGER,
+    contig_count INTEGER,
+    score_contig_sum INTEGER,
+    score_sum INTEGER,
+    total_bp INTEGER,
+    nonstd_bp INTEGER,
+    gene_count INTEGER,
+    at_bp INTEGER,
+    rrna_count INTEGER,
+    trna_count INTEGER,
+    genome_count INTEGER
+);
+
+
+
+create or replace view replicon_stats as
+select
+replicon.genome_id, replicon.accession, replicon.version, stat_size_bp, stat_number_nonstd_bases, stat_perc_at, stat_number_of_genes, stat_number_of_contigs, replicon_type, replicon_id, trna_count_accession, rrna_count_accession,
+format(1000*stat_number_of_genes/stat_size_bp,3) as gene_density
+from replicon
+left outer join trna_count_accession on trna_count_accession.accession = replicon.accession
+left outer join rrna_count_accession on rrna_count_accession.accession = replicon.accession
+group by replicon.accession order by replicon.stat_size_bp desc;
+
+create or replace view displaygenome_replicon_stats as select * from replicon_stats;
+
+
+
+create table phyla 
+(
+    id INTEGER PRIMARY KEY AUTO_INCREMENT,
+    phyla_name VARCHAR(255) NOT NULL,
+    tax_id INTEGER NOT NULL,
+    colour VARCHAR(255)
+);
 
 /* perhaps faster, but wrong version
 create or replace view genome_stats as 
@@ -190,4 +262,25 @@ create table rrna
     score FLOAT,
     sequence TEXT
 )
+
+create or replace view rrna_count_accession as select accession, count(*) as rrna_count_accession from rrna group by accession;
+create or replace view trna_count_accession as select accession, count(*) as trna_count_accession from trna group by accession;
+
+
+
+create table rrna_alignment
+(
+    id INTEGER PRIMARY KEY AUTO_INCREMENT,
+    rrna1_id INTEGER,
+    rrna2_id INTEGER,
+    score FLOAT
+)
+
+-- get the number of each nucleotide in the rrna sequence
+select accession, length(sequence), length(replace(sequence, 'g', '')) as no_g, length(replace(sequence, 'c', '')) as no_c, length(replace(sequence, 't', '')) as no_t, length(replace(sequence, 'a', '')) as no_a, (2*length(sequence) - length(replace(sequence, 'g', '')) - length(replace(sequence, 'c', ''))) / length(sequence) AS percentat from rrna where accession='FQ312030';
+
+
+-- django likes to give tables names prefixed by the app name, so make it happy with these:
+create or replace view displaygenome_rrna as select * from rrna;
+create or replace view displaygenome_trna as select * from trna;
 

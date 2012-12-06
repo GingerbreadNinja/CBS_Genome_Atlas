@@ -26,39 +26,45 @@ def db_connect():
     return cur
 
 
-def load_data(genome_id, doubling_time, optimal_growth_temp):
+def load_data(genome_id, alt_genome_name):
     if genome_id == "":
         sys.stderr.write("rnammer_stats: missing genome_id")
         sys.exit(2)
 
     cur = db_connect()
 
-    row = cur.execute("""SELECT * FROM genome_external_data WHERE genome_id = %s""", (genome_id))
+    row = cur.execute("""SELECT * FROM helen_paper_data WHERE genome_id = %s""", (genome_id))
     rows = cur.fetchall()
     if rows:
-        cur.execute("""UPDATE genome_external_data SET doubling_time_minutes = %s, optimal_growth_temp = %s WHERE genome_id = %s""", (doubling_time, optimal_growth_temp, genome_id))
+        cur.execute("""UPDATE helen_paper_data SET genome_id = %s, alt_genome_name = %s WHERE genome_id = %s""", (genome_id, alt_genome_name, genome_id))
     else:
-        cur.execute("""INSERT INTO genome_external_data (genome_id, doubling_time_minutes, optimal_growth_temp) VALUES (%s, %s, %s)""", (genome_id, doubling_time, optimal_growth_temp))
+        cur.execute("""INSERT INTO helen_paper_data (genome_id, alt_genome_name) VALUES (%s, %s)""", (genome_id, alt_genome_name))
 
 def ask_user_about_match(organism_name, partial):
     cur = db_connect()
-    print "-- checking for matches against " + partial
-    cur.execute("""SELECT genome_id, genome_name FROM genome where genome_name LIKE %s""", (partial))
+    print "-- checking for matches against " + partial + "\n"
+    cur.execute("""SELECT genome_id, genome_name FROM genome where genome_name LIKE %s order by genome_name""", (partial))
     rows = cur.fetchall()
     if rows:
+        gs = []
         for r in rows:
             genome_id, genome_name = r
-            print str(genome_id) + "   " + genome_name
-            input = ""
-            #while input != 'y' or input != 'n':
-            input = raw_input("Select genome_ids that match > ")
-            print "got input: " + input
+            gs.append(genome_id)
+            print str(genome_id) + "   " + genome_name + "                  " + organism_name
 
-
-            r_genome_ids = re.compile("([0-9]+)(?:(\s[0-9]+))*")
-            m = r_genome_ids.match(input)
-            if m is not None:
-                return m.group(0)   ##XXX this does not return each group as an element in the array, it returns each digit as an element in the array
+        input = ""
+        #while input != 'y' or input != 'n':
+        input = raw_input("\nSelect genome_ids that match or <enter> for all, 'none' for none> ")
+        
+        if input == 'none':
+            return None
+        #TODO elif input =~ [A-z] return None
+        elif input != '':
+            selected_genome_ids = input.split(' ')
+            return selected_genome_ids
+        else:
+            return gs
+            
 
                 #input = raw_input("Does\t" + organism_name + "\t=\t" + genome_name + "\ny/n/a> ")
                 #if input == "y":
@@ -87,7 +93,7 @@ def get_genome_ids(organism_name):
             ids.append(genome_id)
         return ids;
     else: 
-        print "No exact match, trying partial match"
+        print "No exact match"
         # replace with wildcards all spaces, dashes, variant spellings of "species", 
         partial = organism_name
         partial = re.sub(r'\s', "%", partial)
@@ -98,8 +104,6 @@ def get_genome_ids(organism_name):
         partial = re.sub(r'sp.', "%", partial)
         partial += "%"
 
-        print "name to match on: " + partial
-
         result = ask_user_about_match(organism_name, partial)
         if result is not None:
             return result
@@ -107,17 +111,17 @@ def get_genome_ids(organism_name):
             # try stripping off the last block successively and try to match
             m = ""
             r = re.compile(r'(.*) [^ ]')
+            partial = organism_name
             while m is not None:
-                m = r.match(organism_name)
+                m = r.match(partial)
                 if m is not None:
                     partial = m.group(1) + "%"
                     print "name trimmed to " + partial
                     result = ask_user_about_match(organism_name, partial)
                     if result is not None:
                         return result;
-                    else: 
-                        print "nothing looks at all similar"
-                        return None
+            print "nothing looks at all similar"
+            return None
                 
                     
 def parse_data(lines):
@@ -125,7 +129,7 @@ def parse_data(lines):
         genome_id = ""
         print "line: " + line
 
-        r_first_line = re.compile(r"(.*)\t([0-9]+)\t([0-9]+)\n")
+        r_first_line = re.compile(r"(.*)\t([0-9\.]+)\t([0-9]+)\n")
 
         m = r_first_line.match(line)
         if m is not None:
@@ -133,11 +137,6 @@ def parse_data(lines):
             doubling_time = m.group(2)
             optimal_growth_temp = m.group(3)
 
-            if debug:
-                print "name: " + organism_name
-                print "doubling_time: " + doubling_time
-                print "optimal_growth_temp: " + optimal_growth_temp
-    
             genome_ids = get_genome_ids(organism_name)
             if genome_ids is not None:
                 for genome_id in genome_ids:
@@ -146,7 +145,7 @@ def parse_data(lines):
                         print "genome_id: " + str(genome_id)
     
                     if genome_id:
-                        load_data(genome_id, doubling_time, optimal_growth_temp)
+                        load_data(genome_id, organism_name)
     
                     if debug:
                         print "------------------------------------------------"

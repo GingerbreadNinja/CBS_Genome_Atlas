@@ -7,7 +7,7 @@ Each of the directives or recipes in the makefile are jobsteps.
 How to add a new step to a job:
 
 - add a row to the table jobstep 
-  insert into jobstep (name, description) values ('trnascan', 'Runs trnascan-1.4 to predict tRNA structures.');
+  insert into jobstep (jobstep_name, description) values ('trnascan', 'Runs trnascan-1.4 to predict tRNA structures.');
 
 - add a row to the job - jobstep join table
   insert into job_jobsteps(job_id, jobstep_id) values (1, 3);
