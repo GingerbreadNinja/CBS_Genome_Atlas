@@ -193,6 +193,7 @@ create table tax_stats (
     tax_name VARCHAR(255)
 );
 
+create or replace view displaygenome_tax_stats as select * from tax_stats;
 
 
 create or replace view replicon_stats as
