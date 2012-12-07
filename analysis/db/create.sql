@@ -168,9 +168,12 @@ create table tax_path (
 );
 
 create table tax_stats (
-    tax_id INTEGER PRIMARY KEY,
+    row_id INTEGER PRIMARY KEY AUTO_INCREMENT,
+    tax_id INTEGER,
     modify_date DATE,
     genome_id INTEGER,
+    accession VARCHAR(20),
+    version INTEGER,
     bioproject_id INTEGER,
     genome_name VARCHAR(255),
     score_nonstd_sum INTEGER,
@@ -180,13 +183,14 @@ create table tax_stats (
     contig_count INTEGER,
     score_contig_sum INTEGER,
     score_sum INTEGER,
-    total_bp INTEGER,
-    nonstd_bp INTEGER,
+    total_bp BIGINT,
+    nonstd_bp BIGINT,
     gene_count INTEGER,
-    at_bp INTEGER,
-    rrna_count INTEGER,
-    trna_count INTEGER,
-    genome_count INTEGER
+    at_bp BIGINT,
+    rrna_count BIGINT,
+    trna_count BIGINT,
+    genome_count INTEGER,
+    tax_name VARCHAR(255)
 );
 
 

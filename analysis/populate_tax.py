@@ -6,6 +6,7 @@ import inspect
 import math
 from datetime import *
 
+debug = 0
 
 def usage():
    sys.stderr.write(sys.argv[0] + ' accession version\n')
@@ -63,18 +64,69 @@ def read_data(cur, accession, version):
     return tax_id, all_data
 
 
-
 def write_data(cur, accession, version, tax_id, all_data, leaf):
     (modify_date, genome_id, bioproject_id, genome_name, score_nonstd, chromosome_count, plasmid_count, replicon_count, contig_count, score_contig, score, total_bp, nonstd_bp, gene_count, at_bp, rrna_count, trna_count) = all_data
+
+
+    #first, insert or update data for the replicon itself iff we are at a leaf
+    #second, insert or update data for the genome
+
+
+    # REPLICON
+
+    if leaf:
+        cur.execute("""SELECT * FROM tax_stats where tax_id = %s and accession = %s and version = %s""", (tax_id, accession, version))
+        rows = cur.fetchall()
+        if rows:
+            cur.execute("""UPDATE tax_stats SET 
+            score_nonstd_sum = %s,
+            chromosome_count = %s,
+            plasmid_count = %s,
+            replicon_count = %s,
+            contig_count = %s,
+            score_contig_sum = %s,
+            score_sum = %s,
+            total_bp = %s,
+            nonstd_bp = %s,
+            gene_count = %s,
+            at_bp = %s,
+            rrna_count = %s,
+            trna_count = %s
+            WHERE tax_id = %s and accession = %s and version = %s
+            """, (score_nonstd, chromosome_count, plasmid_count, replicon_count, contig_count, score_contig, score, total_bp, nonstd_bp, gene_count, at_bp, rrna_count, trna_count, tax_id, accession, version))
+        else:
+            cur.execute("""INSERT INTO tax_stats (
+            tax_id,
+            accession,
+            version,
+            score_nonstd_sum,
+            chromosome_count,
+            plasmid_count,
+            replicon_count,
+            contig_count,
+            score_contig_sum,
+            score_sum,
+            total_bp,
+            nonstd_bp,
+            gene_count,
+            at_bp,
+            rrna_count,
+            trna_count
+            ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""", (tax_id, accession, version, score_nonstd, chromosome_count, plasmid_count, replicon_count, contig_count, score_contig, score, total_bp, nonstd_bp, gene_count, at_bp, rrna_count, trna_count))
+    
+
+    # GENOME
+    
     #look in the tax path to see if this entry is already in the tax_* tables
     cur.execute("""SELECT * from tax_path where tax_id = %s and accession = %s and version = %s""", (tax_id, accession, version))
     rows = cur.fetchall()
     if rows:
-        sys.stderr.write("create_tax_entries: not updating row in tax_path for existing accession = " + accession + ", version = " + str(version) + ", tax_id = " + str(tax_id) + "\n")
+        if debug:
+            sys.stderr.write("create_tax_entries: not updating row in tax_path for existing accession = " + accession + ", version = " + str(version) + ", tax_id = " + str(tax_id) + "\n")
     else: #now we have data to insert or update
         #first, update the path table so we know our data will be in the stats table
         cur.execute("""INSERT INTO tax_path (tax_id, accession, version) VALUES (%s, %s, %s)""", (tax_id, accession, version))
-        cur.execute("""SELECT modify_date, genome_id, bioproject_id, genome_name, score_nonstd_sum, chromosome_count, plasmid_count, replicon_count, contig_count, score_contig_sum, score_sum, total_bp, nonstd_bp, gene_count, at_bp, rrna_count, trna_count, genome_count FROM tax_stats where tax_id = %s""", (tax_id))
+        cur.execute("""SELECT modify_date, genome_id, bioproject_id, genome_name, score_nonstd_sum, chromosome_count, plasmid_count, replicon_count, contig_count, score_contig_sum, score_sum, total_bp, nonstd_bp, gene_count, at_bp, rrna_count, trna_count, genome_count FROM tax_stats where tax_id = %s and accession IS NULL""", (tax_id))
         row = cur.fetchone()
         if row: #then info has been added for other replicons, so we need to integrate ours
             if (modify_date <= row['modify_date']):
@@ -108,21 +160,21 @@ def write_data(cur, accession, version, tax_id, all_data, leaf):
             cur.execute("""UPDATE tax_stats set 
             modify_date = %s,
             genome_id = %s,
-        	bioproject_id = %s,
-        	genome_name = %s,
-        	score_nonstd_sum = %s,
-        	chromosome_count = %s,
-        	plasmid_count = %s,
-        	replicon_count = %s,
-        	contig_count = %s,
-        	score_contig_sum = %s,
-        	score_sum = %s,
-        	total_bp = %s,
-        	nonstd_bp = %s,
-        	gene_count = %s,
-        	at_bp = %s,
-        	rrna_count = %s,
-        	trna_count = %s,
+            bioproject_id = %s,
+            genome_name = %s,
+            score_nonstd_sum = %s,
+            chromosome_count = %s,
+            plasmid_count = %s,
+            replicon_count = %s,
+            contig_count = %s,
+            score_contig_sum = %s,
+            score_sum = %s,
+            total_bp = %s,
+            nonstd_bp = %s,
+            gene_count = %s,
+            at_bp = %s,
+            rrna_count = %s,
+            trna_count = %s,
             genome_count = %s
             WHERE tax_id = %s""", (modify_date, genome_id, bioproject_id, genome_name, score_nonstd, chromosome_count, plasmid_count, replicon_count, contig_count, score_contig, score, total_bp, nonstd_bp, gene_count, at_bp, rrna_count, trna_count, genome_count, tax_id))
         else:
@@ -134,21 +186,21 @@ def write_data(cur, accession, version, tax_id, all_data, leaf):
             tax_id,
             modify_date,
             genome_id,
-        	bioproject_id,
-        	genome_name,
-        	score_nonstd_sum,
-        	chromosome_count,
-        	plasmid_count,
-        	replicon_count,
-        	contig_count,
-        	score_contig_sum,
-        	score_sum,
-        	total_bp,
-        	nonstd_bp,
-        	gene_count,
-        	at_bp,
-        	rrna_count,
-        	trna_count,
+            bioproject_id,
+            genome_name,
+            score_nonstd_sum,
+            chromosome_count,
+            plasmid_count,
+            replicon_count,
+            contig_count,
+            score_contig_sum,
+            score_sum,
+            total_bp,
+            nonstd_bp,
+            gene_count,
+            at_bp,
+            rrna_count,
+            trna_count,
             genome_count
             ) VALUES (%s, %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s, %s)""", (tax_id, modify_date, genome_id, bioproject_id, genome_name, score_nonstd, chromosome_count, plasmid_count, replicon_count, contig_count, score_contig, score, total_bp, nonstd_bp, gene_count, at_bp, rrna_count, trna_count, 1))
 
@@ -158,12 +210,14 @@ def get_parent(cur, tax_id):
 
     tax_cur = db_connect_tax()
 
-    cur.execute("""SELECT tax_name FROM tax_stats where tax_id = %s""", (tax_id)) 
-    n = cur.fetchone()['tax_name']
-    if n == None:
+    cur.execute("""SELECT tax_name FROM tax_stats where tax_id = %s and tax_name is NOT NULL and accession is NULL""", (tax_id)) 
+    row = cur.fetchone()
+    if row:
+        n = row['tax_name']
+    else:
         tax_cur.execute("""SELECT name_txt from names where name_class = "scientific name" and tax_id = %s""", (tax_id))
         tax_name = tax_cur.fetchone()['name_txt']
-        cur.execute("""UPDATE tax_stats SET tax_name=%s WHERE tax_id=%s""", (tax_name, tax_id))
+        cur.execute("""UPDATE tax_stats SET tax_name=%s WHERE tax_id=%s and accession is NULL""", (tax_name, tax_id))
 
     tax_cur.execute("""SELECT parent_tax_id FROM nodes WHERE tax_id = %s""", (tax_id))
     return tax_cur.fetchone()['parent_tax_id']
