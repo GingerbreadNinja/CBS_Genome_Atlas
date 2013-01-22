@@ -58,7 +58,7 @@ def read_data(cur, accession, version):
         chromosome_count = 1
     if replicon_type == 'PLASMID':
         plasmid_count = 1
-    at_bp = math.floor(perc_at*gene_count)
+    at_bp = math.floor(perc_at*total_bp/100)
     all_data = (modify_date, genome_id, bioproject_id, genome_name, score_nonstd, chromosome_count, plasmid_count, replicon_count, contig_count, score_contig, score, total_bp, nonstd_bp, gene_count, at_bp, rrna_count, trna_count)
 
     return tax_id, all_data
