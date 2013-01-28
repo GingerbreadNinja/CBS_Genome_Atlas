@@ -39,8 +39,9 @@ endif
 
 all: single_genome
 
-single_genome: populate-tax remove-job
-#rnammer-stats convert_to_fasta trnascan trnascan-stats remove-job
+single_genome: rnammer-stats convert_to_fasta trnascan trnascan-stats populate-tax remove-job
+
+populate_tax: populate-tax remove-job
 
 convert_to_fasta: $(ACCESSION)_$(VERSION).fna
 
