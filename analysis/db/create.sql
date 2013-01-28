@@ -39,7 +39,9 @@ create table active_job
     accession VARCHAR(255) NOT NULL,
     version INT(11) NOT NULL,
     FOREIGN KEY (accession) REFERENCES replicon (accession), -- (null implies all)
-    status enum ('Failure', 'In Progress', 'Success')
+    status enum ('Failure', 'In Progress', 'Success'),
+    cron_id INTEGER,
+    FOREIGN KEY (cronid) REFERENCES cron_log (id)
 );
 
 -- logs every time the hourly cron script to enqueue jobs has been run
@@ -47,7 +49,7 @@ create table cron_log
 (
     id INTEGER PRIMARY KEY AUTO_INCREMENT,
     start_time DATETIME NOT NULL,
-    responsible enum ('cron', 'oneoff', 'backfill')
+    runas enum ('cron', 'oneoff', 'backfill')
 );
 
 create table job
