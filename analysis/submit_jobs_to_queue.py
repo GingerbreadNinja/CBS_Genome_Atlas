@@ -57,7 +57,7 @@ def process_one_genome(accession, version, maketag):
 
     # TODO get this information from a config file
     logging_dir = "/home/panfs/cbs/projects/cge/data/public/genome_sync/log/"
-    call(["xmsub", "-l", "mem=4gb,walltime=3600,procs=8,partition=cge-cluster", "-de", "-ro", logging_dir + accession + "_" + job_uuid + ".log", "-re", logging_dir + accession + "_" + job_uuid + ".out", "-N", accession + "_" + str(version) + "_" + job_uuid, "-r", "y", "make -i -k", maketag, "ACCESSION=" + accession, "VERSION=" + str(version), "JOB_UUID=" + job_uuid])
+    call(["xmsub", "-l", "mem=4gb,walltime=3600,procs=4,partition=cge-cluster", "-de", "-ro", logging_dir + accession + "_" + job_uuid + ".log", "-re", logging_dir + accession + "_" + job_uuid + ".out", "-N", accession + "_" + str(version) + "_" + job_uuid, "-r", "y", "make -i -k", maketag, "ACCESSION=" + accession, "VERSION=" + str(version), "JOB_UUID=" + job_uuid])
  
 def get_last_runtime(backfill):
     # check in db for latest runtime
