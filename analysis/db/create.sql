@@ -161,8 +161,41 @@ left outer join rrna_count on genome.genome_id = rrna_count.genome_id
 left outer join bioproject on genome.bioproject_id = bioproject.bioproject_id
 group by replicon.genome_id;
 
+
+create table genome_stats_new (
+    genome_id INTEGER PRIMARY KEY AUTO_INCREMENT,
+    modify_date DATE,
+    tax_id INTEGER,
+    bioproject_id INTEGER,
+    genome_name VARCHAR(255),
+    score INTEGER,
+    gene_density FLOAT,
+    percent_at FLOAT,
+    chromosome_count INTEGER,
+    plasmid_count INTEGER, 
+    replicon_count INTEGER,
+    contig_count INTEGER,
+    total_bp BIGINT, 
+    gene_count INTEGER,
+    rrna_count BIGINT, 
+    trna_count BIGINT, 
+    at_bp BIGINT, 
+    nonstd_bp BIGINT, 
+    percent_nonstd_bp FLOAT
+);
+alter table genome_stats_new engine = InnoDB;
+
 create or replace view displaygenome_genome_stats as select * from genome_stats;
 
+
+create table genome_path (
+    path_id INTEGER PRIMARY KEY AUTO_INCREMENT,
+    genome_id INTEGER NOT NULL,
+    FOREIGN KEY (genome_id) REFERENCES genome (genome_id),
+    accession VARCHAR(20) NOT NULL,
+    version INTEGER NOT NULL,
+    FOREIGN KEY (accession, version) REFERENCES replicon (accession, version)
+);
 
 
 
@@ -199,8 +232,36 @@ create table tax_stats (
     tax_name VARCHAR(255)
 );
 
-create or replace view displaygenome_tax_stats as select * from tax_stats;
 
+create table tax_stats_new (
+    row_id INTEGER PRIMARY KEY AUTO_INCREMENT,
+    tax_id INTEGER,
+    modify_date DATE,
+    tax_name VARCHAR(255),
+    genome_count INTEGER,
+    score FLOAT, -- score_numerator divided by genome_count
+    score_numerator FLOAT,
+    gene_density FLOAT,
+    gene_density_numerator FLOAT,
+    percent_at FLOAT,
+    percent_at_numerator FLOAT,
+
+    chromosome_count INTEGER,
+    plasmid_count INTEGER,
+    replicon_count INTEGER,
+    total_bp BIGINT,
+    gene_count INTEGER,
+    rrna_count BIGINT,
+    trna_count BIGINT,
+    contig_count INTEGER,
+    nonstd_bp BIGINT,
+    at_bp BIGINT
+);
+
+alter table tax_stats_new engine = InnoDB;
+
+
+create or replace view displaygenome_tax_stats as select * from tax_stats;
 
 create or replace view replicon_stats as
 select
@@ -210,6 +271,27 @@ from replicon
 left outer join trna_count_accession on trna_count_accession.accession = replicon.accession
 left outer join rrna_count_accession on rrna_count_accession.accession = replicon.accession
 group by replicon.accession order by replicon.stat_size_bp desc;
+
+create table replicon_stats_new
+(
+
+    row_id INTEGER PRIMARY KEY AUTO_INCREMENT,
+    genome_id INTEGER,
+    accession VARCHAR(20),
+    version INTEGER,
+    replicon_type VARCHAR(255),
+    score FLOAT,
+    gene_density FLOAT,
+    percent_at FLOAT, -- stat_perc_at
+    total_bp BIGINT, -- stat_size_bp
+    gene_count INTEGER, -- stat_number_of_genes
+    trna_count BIGINT,
+    rrna_count BIGINT,
+    nonstd_bp BIGINT, -- stat_number_nonstd_bases
+    at_bp BIGINT,
+    contig_count INTEGER -- stat_number_of_contigs
+);
+alter table replicon_stats_new engine = InnoDB;
 
 create or replace view displaygenome_replicon_stats as select * from replicon_stats;
 

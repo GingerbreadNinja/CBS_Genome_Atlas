@@ -1,23 +1,28 @@
 from Bio import SeqIO
 from Bio.SeqUtils import GC
 import os, sys, getopt;
-import MySQLdb
 import inspect
+from genomeanalysis.common import *
 
 
 def usage():
    sys.stderr.write(sys.argv[0] + ' -i <inputfile> [-o <outputfile>]\n')
    sys.exit(2)
 
-def db_connect():
-    #TODO pull this out into a module -- I think Steve has one
-    db = MySQLdb.connect(host="mysql", port=3306,db="steve_private", read_default_file="~/.my.cnf")
-    cur = db.cursor()
-    return cur 
-
 def convert(inputfile, outputfile):
    sys.stderr.write('Input file is ' + inputfile + "\n")
    sys.stderr.write('Output file is ' + outputfile + "\n")
+   
+   (accession, version) = parse_filename(inputfile)
+   genome_id = get_genome_id(accession, version)
+   if (genome_id > 0):
+      if (not genome_is_valid(genome_id)):
+         sys.stderr.write("genome " + str(genome_id) + " has warnings or is invalid\n")
+         exit(1)
+   else:
+      sys.stderr.write("genome_id not found\n")
+      exit(1)
+
    try:
       input_handle = open(inputfile, "rU")
       output_handle = open(outputfile, "w")
@@ -31,8 +36,7 @@ def convert(inputfile, outputfile):
       for record in sequences:
 
          name = record.id
-         accession = name[0:8]
-         version = name[-1]
+         (accession, version) = parse_string(name)
          replicon_length = len(record)
          percent_gc = GC(record.seq)
          percent_at = 100 - percent_gc
@@ -113,6 +117,11 @@ def convert(inputfile, outputfile):
       input_handle.close()
       #SeqIO.convert(inputfile, "genbank", outputfile, "fasta") # silently converts empty files to crap!
    except IOError as e:
+      # if one replicon is not present on disk, then the entire genome is invalid, so mark it as so in the database
+
+      cur = db_connect()
+      cur.execute("""UPDATE genome SET genome_validity = 'MISSING_CONTENT' where genome_id = %s""", (genome_id));
+
       sys.stderr.write("convert_to_fasta: ioerror: " + str(e) + "\n")
       sys.exit(1)
 

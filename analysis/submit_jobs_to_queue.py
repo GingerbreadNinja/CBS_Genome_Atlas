@@ -65,13 +65,13 @@ def process_one_genome(accession, version, maketag, cronid):
     call(["qsub", "-l", "mem=4gb,walltime=3600,ncpus=1", "-N", accession + "_" + str(version) + "_" + job_uuid, "-r", "y", filename])
     #call(["xmsub", "-l", "mem=4gb,walltime=3600,procs=4,partition=cge-cluster", "-q cge", "-de", "-d", logging_dir, "-ro", logging_dir + accession + "_" + job_uuid + ".log", "-re", logging_dir + accession + "_" + job_uuid + ".out", "-N", accession + "_" + str(version) + "_" + job_uuid, "-r", "y", "make -i -k", maketag, "ACCESSION=" + accession, "VERSION=" + str(version), "JOB_UUID=" + job_uuid])
  
-def get_last_runtime(backfill):
+def get_last_runtime(backfill, cron_id):
     # check in db for latest runtime
     cur = db_connect()
     if backfill:
-        cur.execute("""SELECT start_time FROM cron_log WHERE runas = 'backfill' ORDER BY start_time DESC LIMIT 1""")
+        cur.execute("""SELECT start_time FROM cron_log WHERE runas = 'backfill' and id != %s ORDER BY start_time DESC LIMIT 1""", cron_id)
     else:
-        cur.execute("""SELECT start_time FROM cron_log ORDER BY start_time DESC LIMIT 1""")
+        cur.execute("""SELECT start_time FROM cron_log ORDER BY start_time DESC LIMIT 1 and id != %s""", cron_id)
     time = 0
     for row in cur.fetchall():
         time = row[0]
@@ -93,7 +93,7 @@ def new_genomes(time):
     return cur.fetchall()
 
 def process_new_genomes(backfill, maketag, cronid):
-    last_runtime = get_last_runtime(backfill)
+    last_runtime = get_last_runtime(backfill, cronid)
     for accession, version in new_genomes(last_runtime):
         if debug:
             print "accession = " + accession + "\tversion = " + str(version)
