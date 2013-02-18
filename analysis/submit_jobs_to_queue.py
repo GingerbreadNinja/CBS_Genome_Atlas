@@ -71,7 +71,7 @@ def get_last_runtime(backfill, cron_id):
     if backfill:
         cur.execute("""SELECT start_time FROM cron_log WHERE runas = 'backfill' and id != %s ORDER BY start_time DESC LIMIT 1""", cron_id)
     else:
-        cur.execute("""SELECT start_time FROM cron_log ORDER BY start_time DESC LIMIT 1 and id != %s""", cron_id)
+        cur.execute("""SELECT start_time FROM cron_log WHERE id != %s ORDER BY start_time DESC LIMIT 1""", cron_id)
     time = 0
     for row in cur.fetchall():
         time = row[0]

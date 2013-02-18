@@ -1,4 +1,6 @@
 
+alter table replicon add constraint replicon_unique_a_v unique key (accession, version);
+
 -- a job consists of multiple jobsteps
 -- eg within the job to process one genome, the jobsteps include converting gbk -> fasta, running rnammer, etc
 
