@@ -9,6 +9,7 @@ from genomeanalysis.common import *
 import traceback
 
 debug = 0
+env = "prod"
 
 def usage():
    sys.stderr.write(sys.argv[0] + ' accession version\n')
@@ -25,7 +26,7 @@ def main(argv):
     if accession == "" or version == "":
         usage()
     else:
-        (db, cur) = db_connect_transaction()
+        (db, cur) = db_connect_transaction(env)
         try:
             if (not genome_is_valid(get_genome_id(accession, version))):
                 sys.stderr.write("genome is not valid\n")

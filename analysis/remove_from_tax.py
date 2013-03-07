@@ -5,6 +5,7 @@ import sys
 from subprocess import call
 from genomeanalysis.common import *
 
+env = "prod"
 
 def usage():
    sys.stderr.write(sys.argv[0] + ' accession version\n')
@@ -24,7 +25,7 @@ def main(argv):
         usage()
     else:
         remove_all_replicons_for_genome = False #TODO add this switch
-        db, cur = db_connect_transaction()
+        db, cur = db_connect_transaction(env)
         try:
             genome_id = get_genome_id(accession, version)
             if (not genome_is_valid(genome_id)):

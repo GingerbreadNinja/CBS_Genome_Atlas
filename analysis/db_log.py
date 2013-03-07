@@ -1,23 +1,20 @@
 import MySQLdb;
 import sys;
 import getopt;
+from genomeanalysis.common import *
 
 debug = False
+
+env = "prod"
 
 def usage():
     sys.stderr.write('usage:\n\t' + sys.argv[0] + ' --start --job=single_genome --jobstep=rnammer --accession=CP000020 --version=2\n\t' + sys.argv[0] + ' --finish=success --logid=23\n\t' + sys.argv[0] + ' --finish=failure --logid=23\n\t' + sys.argv[0] + ' --remove_job --job_uuid=job_uuid\n');
     sys.exit(2)
 
-def db_connect():
-    #TODO pull this out into a module -- I think Steve has one
-    db = MySQLdb.connect(host="mysql", port=3306,db="steve_private", read_default_file="~/.my.cnf")
-    cur = db.cursor()
-    return cur
-
 def start(job, job_uuid, jobstep, accession, version):
     if debug:
         print "logging start of jobstep"
-    cur = db_connect()
+    cur = db_connect(env)
     cur.execute("""INSERT INTO jobstep_log (start_time, status, job_id, job_uuid, jobstep_id, accession, version) VALUES (now(), %s, (SELECT job_id FROM job WHERE job_name=%s), %s, (SELECT jobstep_id FROM jobstep WHERE jobstep_name=%s), %s, %s)""", ('In Progress', job, job_uuid, jobstep, accession, version))
     #TODO error checking
     print cur.lastrowid
@@ -25,7 +22,7 @@ def start(job, job_uuid, jobstep, accession, version):
 def finish(logid, success):
     if debug:
         print "logging end of jobstep"
-    cur = db_connect()
+    cur = db_connect(env)
     if success == "success":
         cur.execute("""UPDATE jobstep_log SET status='Success' WHERE log_id=%s""", (logid))
     elif success == "failure":
@@ -34,7 +31,7 @@ def finish(logid, success):
 def remove_job(job_uuid):
     if debug:
         print "removing job"
-    cur=db_connect()
+    cur=db_connect(env)
     #TODO check that success passed in was really successful!
     cur.execute("""SELECT * FROM jobstep_log WHERE job_uuid=%s AND status='Failure'""", (job_uuid))
     success = True

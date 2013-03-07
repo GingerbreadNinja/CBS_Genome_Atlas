@@ -3,25 +3,21 @@ import sys;
 import getopt;
 import re;
 import os;
+from genomeanalysis.common import *
 
 
 debug = 0
+env = "prod"
 
 def usage():
     sys.stderr.write('usage: ' + sys.argv[0] + ' CP000020_2.trna');
     sys.exit(2)
 
-def db_connect():
-    #TODO pull this out into a module -- I think Steve has one
-    db = MySQLdb.connect(host="mysql", port=3306,db="steve_private", read_default_file="~/.my.cnf")
-    cur = db.cursor()
-    return cur
-
 def write_stats(accession, version, start_location, end_location, complementary_strand, amino_acid, anti_codon, sequence):
     if accession == "" or version == "" or start_location == "" or end_location == "" or complementary_strand == "" or amino_acid == "" or anti_codon == "" or sequence == "":
         sys.stderr.write("trnascan-stats: missing one of\n\taccession: " + accession + "\n\tversion: " + version + "\n\tstart_location: " + start_location + "\n\tend_location: " + end_location + "\n\tcomplementary_strand: " + complementary_strand + "\n\tamino_acid: " + amino_acid + "\n\tanti_codon " + anti_codon + "\n\tsequence: " + sequence + "\n")
         sys.exit(2)
-    cur = db_connect()
+    cur = db_connect(env)
     #TODO the database should probably enforce the non duplicate rows as well
     row = cur.execute("""SELECT * FROM trna WHERE accession = %s and version = %s and start_location = %s and end_location = %s and complementary_strand = %s""", (accession, version, start_location, end_location, complementary_strand))
     rows = cur.fetchall()
@@ -61,12 +57,11 @@ def parse_predictions(lines, filename):
 
         if line.startswith("sequence name="):
             accession = r_first_line.findall(line)[0]
-            accession = accession.replace(".", "_")
-            if accession != filename:
+            accession_test = accession.replace(".", "_")
+            if accession_test != filename:
                 sys.stderr.write("Accession number in file (" + accession + ") doesn't match accession number in filename (" + filename + ").  Aborting.\n")
                 sys.exit(3)
-            version = accession[-1] #TODO this will break if the version is > 9.  as of Nov 2012, the max version is 5.
-            accession = accession[0:8]
+            accession, version = parse_string(accession)
             continue; # skip first line
 
         if line.startswith("start position="):

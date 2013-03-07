@@ -39,7 +39,8 @@ endif
 
 all: single_genome
 
-single_genome: rnammer-stats convert_to_fasta trnascan trnascan-stats populate-tax remove-job
+#single_genome: convert_to_fasta rnammer trnascan trnascan-stats populate-tax remove-job
+single_genome: convert_to_fasta trnascan trnascan-stats populate-tax remove-job
 
 populate_tax: populate-tax remove-job
 
@@ -55,9 +56,10 @@ rnammer: $(ACCESSION)_$(VERSION).rrna
 $(ACCESSION)_$(VERSION).rrna: $(ACCESSION)_$(VERSION).fna
 	@echo "Running rnammer"
 	$(eval LOGID=$(shell python $(BIN_DIR)db_log.py --start --job=$(JOB) --job_uuid=$(JOB_UUID) --jobstep=rnammer --accession=$(ACCESSION) --version=$(VERSION)))
-	$(shell rnammer -S bac -m ssu -f $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).rrna $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).fna; if [ $$? -eq 0 ]; then python $(BIN_DIR)db_log.py --finish=success --logid=$(LOGID); else python $(BIN_DIR)db_log.py --finish=failure --logid=$(LOGID); fi)
+	$(shell /home/people/helen/rnammer-1.2/rnammer -S bac -m ssu -f $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).rrna $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).fna; if [ $$? -eq 0 ]; then python $(BIN_DIR)db_log.py --finish=success --logid=$(LOGID); else python $(BIN_DIR)db_log.py --finish=failure --logid=$(LOGID); fi)
 
-#rnammer-stats: $(ACCESSION)_$(VERSION).rrna2  UNCOMMENT this when rnammer is running on cge
+#UNCOMMENT the dependency when rnammer is running on cge
+#rnammer-stats: $(ACCESSION)_$(VERSION).rrna2  
 rnammer-stats: 
 	@echo "Running stats for rnammer"
 	$(eval LOGID=$(shell python $(BIN_DIR)db_log.py --start --job=$(JOB) --job_uuid=$(JOB_UUID) --jobstep=rnammer-stats --accession=$(ACCESSION) --version=$(VERSION)))
@@ -73,7 +75,7 @@ $(ACCESSION)_$(VERSION).trna: $(ACCESSION)_$(VERSION).fna
 trnascan-stats: $(ACCESSION)_$(VERSION).trna
 	@echo "Running trnascan-stats"
 	$(eval LOGID=$(shell python $(BIN_DIR)db_log.py --start --job=$(JOB) --job_uuid=$(JOB_UUID) --jobstep=trnascan-stats --accession=$(ACCESSION) --version=$(VERSION)))
-	$(shell python $(BIN_DIR)trnascan/stats.py $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).trna; if [ $$? -eq 0 ]; then python $(BIN_DIR)db_log.py --finish=success --logid=$(LOGID); else python $(BIN_DIR)db_log.py --finish=failure --logid=$(LOGID); fi)
+	$(shell python $(BIN_DIR)trnascan_stats.py $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).trna; if [ $$? -eq 0 ]; then python $(BIN_DIR)db_log.py --finish=success --logid=$(LOGID); else python $(BIN_DIR)db_log.py --finish=failure --logid=$(LOGID); fi)
 
 populate-tax:
 	@echo "Running populate-tax"

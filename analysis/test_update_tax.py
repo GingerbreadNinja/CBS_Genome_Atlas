@@ -2,15 +2,19 @@ import unittest
 import datetime
 from genomeanalysis.common import *
 
+# shit, i used env both to refer to the database and to the table.  db_connect cares about the database, but get_table cares about the table
+# should just move all the test stuff to the test database with the same table names as in the prod database
+env = "prod"
+
 class TestUpdateTax(unittest.TestCase):
     #def setUp(self):
         #drop tables, recreate tables, create test data
 
-    cur = db_connect()
+    cur = db_connect(env)
     env = 'test'
         
     # all_data is the data we would have read from the base replicon table:
-    # modify_date, genome_id, bioproject_id, genome_name, chromosome_count, plasmid_count, replicon_count, contig_count, total_bp, nonstd_bp, gene_count, at_bp, rrna_count, trna_count, replicon_type, score, gene_density, percent_at
+    # release_date, genome_id, bioproject_id, genome_name, chromosome_count, plasmid_count, replicon_count, contig_count, total_bp, nonstd_bp, gene_count, at_bp, rrna_count, trna_count, replicon_type, score, gene_density, percent_at
 
     test_data = {'v_fischeri_1': {'accession': 'CP000020',
                                   'version': 2,

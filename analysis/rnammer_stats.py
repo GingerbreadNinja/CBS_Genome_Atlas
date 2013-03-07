@@ -3,26 +3,22 @@ import sys;
 import getopt;
 import re;
 import os;
+from genomeanalysis.common import *
 
 
 debug = 0
+env = "prod"
 
 def usage():
     sys.stderr.write('usage: ' + sys.argv[0] + ' CP000020_2.rrna2' + "\n");
     sys.exit(2)
-
-def db_connect():
-    #TODO pull this out into a module -- I think Steve has one
-    db = MySQLdb.connect(host="mysql", port=3306,db="steve_private", read_default_file="~/.my.cnf")
-    cur = db.cursor()
-    return cur
 
 def write_stats(accession, version, start_location, end_location, complementary_strand, molecule, score, sequence):
     if accession == "" or version == "" or start_location == "" or end_location == "" or complementary_strand == "" or molecule == "" or score == "" or sequence == "":
         sys.stderr.write("trnascan-stats: missing one of\n\taccession: " + accession + "\n\tversion: " + version + "\n\tstart_location: " + start_location + "\n\tend_location: " + end_location + "\n\tcomplementary_strand: " + complementary_strand + "\n\tmolecule: " + molecule + "\n\tscore " + score + "\n\tsequence: " + sequence + "\n")
         sys.exit(2)
 
-    cur = db_connect()
+    cur = db_connect(env)
     #TODO the database should probably enforce the non duplicate rows as well
     row = cur.execute("""SELECT * FROM rrna WHERE accession = %s and version = %s and start_location = %s and end_location = %s and complementary_strand = %s""", (accession, version, start_location, end_location, complementary_strand))
     rows = cur.fetchall()

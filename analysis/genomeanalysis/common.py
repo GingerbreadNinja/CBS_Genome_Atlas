@@ -9,14 +9,29 @@ import traceback
 
 top_level_phyla = (1, 68336, 2, 2157, 131550, 51290, 200795, 51290)
 
-def db_connect_transaction():
-    db = MySQLdb.connect(host="mysql", port=3306,db="steve_private", read_default_file="~/.my.cnf")
+env = "prod"
+
+def db_connect_transaction(env):
+    if env == "test":
+        db = MySQLdb.connect(host="mysql", port=3306,db="steve_private", read_default_file="~/.my.cnf")
+    elif env == "prod":
+        db = MySQLdb.connect(host="mysql", port=3306,db="gatlas", read_default_file="~/.my.cnf")
+    else: 
+        sys.stderr.write("env " + env + " is not recognized; can't connect to database in dbconnect(env)")
+        exit(1)
     db.autocommit(False)
     cur = db.cursor(MySQLdb.cursors.DictCursor)
     return (db, cur) 
 
-def db_connect():
-    db = MySQLdb.connect(host="mysql", port=3306,db="steve_private", read_default_file="~/.my.cnf")
+def db_connect(env):
+    #sys.stderr.write("connecting to db env " + env + "\n")
+    if env == "test":
+        db = MySQLdb.connect(host="mysql", port=3306,db="steve_private", read_default_file="~/.my.cnf")
+    elif env == "prod":
+        db = MySQLdb.connect(host="mysql", port=3306,db="gatlas", read_default_file="~/.my.cnf")
+    else: 
+        sys.stderr.write("env " + env + " is not recognized; can't connect to database in dbconnect(env)")
+        exit(1)
     cur = db.cursor(MySQLdb.cursors.DictCursor)
     return cur 
 
@@ -30,12 +45,16 @@ def parse_filename(inputfile):
    return parse_string(basename)
 
 def parse_string(string):
-   accession = string[:string.find('_')] # everything up to the underscore is the accession
-   version = string[-5]; # version is the last thing before the 3 character extension
+   if "_" in string:
+      accession = string[:string.find('_')] # everything up to the underscore is the accession
+      version = string[-5]; # version is the last thing before the 3 character extension
+   else:
+      accession = string[:string.find('.')] # everything up to the underscore is the accession
+      version = string[-1]; # version is the last thing 
    return (accession, version)
 
 def get_genome_id(accession, version):
-   cur = db_connect()
+   cur = db_connect(env)
    try:
       cur.execute("""SELECT genome_id from replicon where accession = %s and version = %s""", (accession, version));
       row = cur.fetchone()
@@ -49,8 +68,20 @@ def get_genome_id(accession, version):
       sys.stderr.write("no genome_id found for accession=" + accession + " and version=" + version + "\n")
       return -1
 
+def get_replicon_stats(accession, version):
+    cur = db_connect(env)
+    try:
+        cur.execute("""SELECT * from displaygenome_replicon_stats where accession = %s and version = %s""", (accession, version))
+        row = cur.fetchone()
+        if (row):
+            return row
+        else:
+            return None
+    except:
+        return None
+
 def get_genome_validity(genome_id):
-   cur = db_connect()
+   cur = db_connect(env)
    cur.execute("""SELECT genome_validity from genome where genome_id = %s""", (genome_id))
    row = cur.fetchone()
    genome_validity = row['genome_validity']
@@ -68,7 +99,7 @@ def get_replicons(cur, genome_id):
     replicons = cur.fetchall()
     return replicons;
 
-def get_tax_parent(cur, tax_id):
+def get_tax_parent(cur, env, tax_id):
     tax_cur = db_connect_tax()
     tax_cur.execute("""SELECT parent_tax_id FROM nodes WHERE tax_id = %s""", (tax_id))
     return tax_cur.fetchone()['parent_tax_id']
@@ -151,10 +182,10 @@ def read_base_replicon_data(cur, accession, version):
         contig_count = row['stat_number_of_contigs']
         replicon_type = row['replicon_type']
         
-        cur.execute("""SELECT bioproject_id, modify_date FROM bioproject WHERE bioproject_id IN (select bioproject_id from genome where genome_id = %s)""", (genome_id))
+        cur.execute("""SELECT bioproject_id, release_date FROM bioproject WHERE bioproject_id IN (select bioproject_id from genome where genome_id = %s)""", (genome_id))
         row = cur.fetchone()
         bioproject_id = row['bioproject_id']
-        modify_date = row['modify_date']
+        release_date = row['release_date']
     
         cur.execute("""SELECT genome_name, tax_id FROM genome WHERE genome_id = %s""", (genome_id))
         row = cur.fetchone()
@@ -182,7 +213,7 @@ def read_base_replicon_data(cur, accession, version):
         score = calculate_score_replicon(nonstd_bp, total_bp, contig_count, replicon_count)
         gene_density = merge_gene_density_genome(gene_count, 0, total_bp, 0)
 
-        all_data = (modify_date, genome_id, bioproject_id, genome_name, chromosome_count, plasmid_count, replicon_count, contig_count, total_bp, nonstd_bp, gene_count, at_bp, rrna_count, trna_count, replicon_type, score, gene_density, percent_at)
+        all_data = (release_date, genome_id, bioproject_id, genome_name, chromosome_count, plasmid_count, replicon_count, contig_count, total_bp, nonstd_bp, gene_count, at_bp, rrna_count, trna_count, replicon_type, score, gene_density, percent_at)
 
         return tax_id, all_data
     else:
@@ -225,9 +256,9 @@ def get_table(table, env):
     exit(1)
 
 def add_accession_to_dgreplicon(cur, env, accession, version, tax_id, all_data):
-    (modify_date, genome_id, bioproject_id, genome_name, chromosome_count, plasmid_count, replicon_count, contig_count, total_bp, nonstd_bp, gene_count, at_bp, rrna_count, trna_count, replicon_type, score, gene_density, percent_at) = all_data
+    (release_date, genome_id, bioproject_id, genome_name, chromosome_count, plasmid_count, replicon_count, contig_count, total_bp, nonstd_bp, gene_count, at_bp, rrna_count, trna_count, replicon_type, score, gene_density, percent_at) = all_data
 
-    print "ADDING ACCESSION " + accession + " TO REPLICON"
+    sys.stderr.write( "ADDING ACCESSION " + accession + " TO REPLICON" + "\n")
     
     table = get_table('dgreplicon', env)
     cur.execute("""SELECT * FROM %s where accession = %%s and version = %%s""" % table, (accession, version))
@@ -278,9 +309,9 @@ def add_accession_to_dggenome(cur, env, accession, version, tax_id, all_data):
     # if included, then don't add it again
     # otherwise add it
 
-    (modify_date, genome_id, bioproject_id, genome_name, chromosome_count, plasmid_count, replicon_count, contig_count, total_bp, nonstd_bp, gene_count, at_bp, rrna_count, trna_count, replicon_type, score, gene_density, percent_at) = all_data
+    (release_date, genome_id, bioproject_id, genome_name, chromosome_count, plasmid_count, replicon_count, contig_count, total_bp, nonstd_bp, gene_count, at_bp, rrna_count, trna_count, replicon_type, score, gene_density, percent_at) = all_data
 
-    print "ADDING " + accession + " TO GENOME"
+    sys.stderr.write( "ADDING " + accession + " TO GENOME" + "\n")
 
     table = get_table('genome_path', env)
     cur.execute("""SELECT genome_id FROM %s WHERE accession = %%s and version = %%s""" % table, (accession, version));
@@ -304,13 +335,13 @@ def add_accession_to_dggenome(cur, env, accession, version, tax_id, all_data):
     else:
         table = get_table('genome_path', env)
         cur.execute("""INSERT INTO %s (genome_id, accession, version) VALUES (%%s, %%s, %%s)""" % table, (genome_id, accession, version))
-        print "ADDING " + accession + " TO GENOME PATH"
+        sys.stderr.write( "ADDING " + accession + " TO GENOME PATH" + "\n")
 
 
         # get the current values from genome_stats
         table = get_table('dggenome', env)
         cur.execute("""SELECT 
-        modify_date,
+        release_date,
         tax_id,
         bioproject_id,
         genome_name,
@@ -347,7 +378,7 @@ def add_accession_to_dggenome(cur, env, accession, version, tax_id, all_data):
             # then combine the current and old values appropropriately for each field and update the db
             table = get_table('dggenome', env)
             cur.execute("""UPDATE %s SET
-            modify_date = %%s,
+            release_date = %%s,
             tax_id = %%s,
             bioproject_id = %%s,
             genome_name = %%s,
@@ -367,7 +398,7 @@ def add_accession_to_dggenome(cur, env, accession, version, tax_id, all_data):
             percent_nonstd_bp = %%s
             WHERE genome_id = %%s""" 
             % table,
-            (merge_date_genome(modify_date, row['modify_date']),
+            (merge_date_genome(release_date, row['release_date']),
             tax_id,
             bioproject_id,
             genome_name,
@@ -399,7 +430,7 @@ def add_accession_to_dggenome(cur, env, accession, version, tax_id, all_data):
             table = get_table('dggenome', env)
             cur.execute("""INSERT INTO %s (
             genome_id,
-            modify_date,
+            release_date,
             tax_id,
             bioproject_id,
             genome_name,
@@ -420,7 +451,7 @@ def add_accession_to_dggenome(cur, env, accession, version, tax_id, all_data):
             ) VALUES (%%s,%%s,%%s,%%s,%%s,%%s,%%s,%%s,%%s,%%s,%%s,%%s,%%s,%%s,%%s,%%s,%%s,%%s,%%s)"""
             % table,
             (genome_id,
-            modify_date,
+            release_date,
             tax_id,
             bioproject_id,
             genome_name,
@@ -443,7 +474,7 @@ def add_accession_to_dggenome(cur, env, accession, version, tax_id, all_data):
     # bundle up the data that needs to be passed into tax (since it stores averages over the genome, not over the replicon)
     # only add genome_count into the tax table if this is the very first time we have seen this genome
     
-    print "******set genomes_to_add: " + str(genome_count)
+    sys.stderr.write( "******set genomes_to_add: " + str(genome_count) + "\n")
     
     genome_data = { 'score': genome_score, 'old_score': old_score, 'gene_density': genome_gene_density, 'old_gene_density': old_gene_density, 'percent_at': genome_percent_at, 'old_percent_at': old_percent_at, 'genomes_to_add': genome_count}
     return genome_data
@@ -459,9 +490,9 @@ def replace_tax_entry_sum(new_value, old_value, cur_value_in_db):
 
 
 def add_accession_to_dgtax(cur, env, accession, version, tax_id, all_data, genome_data):
-    (modify_date, genome_id, bioproject_id, genome_name, chromosome_count, plasmid_count, replicon_count, contig_count, total_bp, nonstd_bp, gene_count, at_bp, rrna_count, trna_count, replicon_type, score, gene_density, percent_at) = all_data
+    (release_date, genome_id, bioproject_id, genome_name, chromosome_count, plasmid_count, replicon_count, contig_count, total_bp, nonstd_bp, gene_count, at_bp, rrna_count, trna_count, replicon_type, score, gene_density, percent_at) = all_data
 
-    print "ADDING " + accession + " to TAX " + str(tax_id)
+    sys.stderr.write( "ADDING " + accession + " to TAX " + str(tax_id) + "\n")
 
     table = get_table('tax_path', env)
     cur.execute("""SELECT tax_id from %s where tax_id = %%s and accession = %%s and version = %%s""" % table, (tax_id, accession, version));
@@ -477,7 +508,7 @@ def add_accession_to_dgtax(cur, env, accession, version, tax_id, all_data, genom
         # get the current values from tax_stats
         table = get_table('dgtax', env)
         cur.execute("""SELECT 
-        modify_date, 
+        release_date, 
         genome_count,
         score,
         score_numerator,
@@ -500,7 +531,6 @@ def add_accession_to_dgtax(cur, env, accession, version, tax_id, all_data, genom
 
         if row: #then info has been added for other replicons, so we need to integrate ours
 
-            print "******genome_count: " + str(row['genome_count'])
             # for averages over replicon, set
             #score = merge_score_tax(score, row['score_numerator'], row['genome_count']),
             #score_numerator = merge_count(score, row['score_numerator']),
@@ -515,7 +545,7 @@ def add_accession_to_dgtax(cur, env, accession, version, tax_id, all_data, genom
 
             table = get_table('dgtax', env)
             cur.execute("""UPDATE %s set 
-            modify_date = %%s,
+            release_date = %%s,
             genome_count = %%s,
             score = %%s,
             score_numerator = %%s,
@@ -535,7 +565,7 @@ def add_accession_to_dgtax(cur, env, accession, version, tax_id, all_data, genom
             at_bp = %%s
             WHERE tax_id = %%s"""
             % table,
-            (merge_date_tax(modify_date, row['modify_date']),
+            (merge_date_tax(release_date, row['release_date']),
             merge_count(genome_data['genomes_to_add'], row['genome_count']),
             replace_tax_entry_average(genome_data['score'], genome_data['old_score'], row['score_numerator'], row['genome_count'], genome_data['genomes_to_add']),
             replace_tax_entry_sum(genome_data['score'], genome_data['old_score'], row['score_numerator']),
@@ -559,7 +589,7 @@ def add_accession_to_dgtax(cur, env, accession, version, tax_id, all_data, genom
             table = get_table('dgtax', env)
             cur.execute("""INSERT INTO %s (
             tax_id,
-            modify_date,
+            release_date,
             genome_count,
             score,
             score_numerator,
@@ -580,7 +610,7 @@ def add_accession_to_dgtax(cur, env, accession, version, tax_id, all_data, genom
             ) VALUES (%%s,%%s,%%s,%%s,%%s,%%s,%%s,%%s,%%s,%%s,%%s,%%s,%%s,%%s,%%s,%%s,%%s,%%s,%%s)"""
             % table,
             (tax_id, 
-            modify_date, 
+            release_date, 
             genome_data['genomes_to_add'],
             genome_data['score'],
             genome_data['score'],
@@ -611,13 +641,13 @@ def add_accession_to_dgtax(cur, env, accession, version, tax_id, all_data, genom
 
 
 def remove_accession_from_dgreplicon(cur, env, accession, version):
-    print "REMOVING ACCESSION " + accession + " FROM REPLICON"
+    sys.stderr.write( "REMOVING ACCESSION " + accession + " FROM REPLICON" + "\n")
 
     table = get_table('dgreplicon', env)
     cur.execute("""DELETE FROM %s WHERE accession = %%s and version = %%s""" % table, (accession, version))
 
 def remove_accession_from_dggenome(cur, env, accession, version, genome_id):
-    print "REMOVING ACCESSION " + accession + " FROM GENOME"
+    sys.stderr.write( "REMOVING ACCESSION " + accession + " FROM GENOME" + "\n")
 
     remove_accession_from_genome_path(cur, env, accession, version, genome_id)
     table = get_table('dggenome', env)
@@ -677,7 +707,7 @@ def recalculate_genome(cur, env, genome_id):
         genome_score = merge_score_genome(nonstd_bp, total_bp, contig_count, replicon_count)
 
         table = get_table('dggenome', env)
-        # modify_date, bioproject_id, genome_name are missing, but won't be modified so it doesn't matter
+        # release_date, bioproject_id, genome_name are missing, but won't be modified so it doesn't matter
         cur.execute("""UPDATE %s SET
         tax_id = %%s,
         score = %%s,
@@ -724,9 +754,9 @@ def recalculate_genome(cur, env, genome_id):
 
 
 def remove_accession_from_dgtax(cur, env, tax_id, accession, version, all_data, genome_data):
-    (modify_date, genome_id, bioproject_id, genome_name, chromosome_count, plasmid_count, replicon_count, contig_count, total_bp, nonstd_bp, gene_count, at_bp, rrna_count, trna_count, replicon_type, score, gene_density, percent_at) = all_data
+    (release_date, genome_id, bioproject_id, genome_name, chromosome_count, plasmid_count, replicon_count, contig_count, total_bp, nonstd_bp, gene_count, at_bp, rrna_count, trna_count, replicon_type, score, gene_density, percent_at) = all_data
 
-    print "REMOVING ACCESSION " + accession + " FROM TAX " + str(tax_id)
+    sys.stderr.write( "REMOVING ACCESSION " + accession + " FROM TAX " + str(tax_id) + "\n")
     
     remove_accession_from_tax_path(cur, env, tax_id, accession, version)
     table = get_table('dgtax', env)
@@ -745,7 +775,7 @@ def remove_accession_from_dgtax(cur, env, tax_id, accession, version, all_data, 
         table = get_table('dgtax', env)
         cur.execute("""DELETE from %s where tax_id = %%s""" % table, (tax_id))
     else:
-        # modify_date is always going to be stuck at the max because we don't save previous values
+        # release_date is always going to be stuck at the max because we don't save previous values
         table = get_table('dgtax', env)
         cur.execute("""SELECT * from %s where tax_id = %%s""" % table, (tax_id))
         current_tax_value = cur.fetchone()

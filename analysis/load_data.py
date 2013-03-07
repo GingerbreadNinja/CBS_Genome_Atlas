@@ -3,6 +3,7 @@ import sys;
 import getopt;
 import re;
 import os;
+from genomeanalysis.common import *
 
 # This program will read in a csv file in the format and some column names
 # organism name \t data1 \t data2 ...
@@ -14,12 +15,13 @@ import os;
 
 
 debug = 1
+env = "prod"
 
 def usage():
     sys.stderr.write('usage: python ' + sys.argv[0] + ' data.csv\n');
     sys.exit(2)
 
-def db_connect():
+def db_connect(env):
     #TODO pull this out into a module -- I think Steve has one
     db = MySQLdb.connect(host="mysql", port=3306,db="steve_private", read_default_file="~/.my.cnf")
     cur = db.cursor()
@@ -31,7 +33,7 @@ def load_data(genome_id, alt_genome_name):
         sys.stderr.write("rnammer_stats: missing genome_id")
         sys.exit(2)
 
-    cur = db_connect()
+    cur = db_connect(env)
 
     row = cur.execute("""SELECT * FROM helen_paper_data WHERE genome_id = %s""", (genome_id))
     rows = cur.fetchall()
@@ -41,14 +43,15 @@ def load_data(genome_id, alt_genome_name):
         cur.execute("""INSERT INTO helen_paper_data (genome_id, alt_genome_name) VALUES (%s, %s)""", (genome_id, alt_genome_name))
 
 def ask_user_about_match(organism_name, partial):
-    cur = db_connect()
+    cur = db_connect(env)
     print "-- checking for matches against " + partial + "\n"
     cur.execute("""SELECT genome_id, genome_name FROM genome where genome_name LIKE %s order by genome_name""", (partial))
     rows = cur.fetchall()
     if rows:
         gs = []
         for r in rows:
-            genome_id, genome_name = r
+            genome_id = r['genome_id']
+            genome_name = r['genome_name']
             gs.append(genome_id)
             print str(genome_id) + "   " + genome_name + "                  " + organism_name
 
@@ -83,13 +86,15 @@ def get_genome_ids(organism_name):
     #return list of all matching genome_ids for this name from the database
 
     # first try an exact match
-    cur = db_connect()
+    cur = db_connect(env)
     cur.execute("""SELECT genome_id, genome_name FROM genome where genome_name = %s""", (organism_name))
     rows = cur.fetchall()
     if rows:
         print "Found exact match on " + organism_name
         ids = []
-        for genome_id, genome_name in rows:
+        for r in rows:
+            genome_id = r['genome_id']
+            genome_name = r['genome_name']
             ids.append(genome_id)
         return ids;
     else: 

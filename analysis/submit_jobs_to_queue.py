@@ -3,6 +3,7 @@ import getopt
 import uuid
 import sys
 from subprocess import call
+from genomeanalysis.common import *
 
 # this script can be run from cron.hourly and also as a one off, if an accession number is given
 
@@ -23,16 +24,11 @@ from subprocess import call
 # the job is removed from the database by the last instruction in the makefile
 
 debug = True
+env = "prod"
 
 def usage():
-    sys.stderr.write('usage:\n\t' + sys.argv[0] + ' --accession=CP000020 --version=2\n\t' + sys.argv[0] + ' --av=CP000020_2\n\t' + sys.argv[0] + ' --latest\t(run on everything since script last ran)\n\t' + sys.argv[0] + ' --backfill\t(run on everything)\noptional:\t--maketag=populate_tax\n\t\t--cron (if running from cron)\n');
+    sys.stderr.write('usage:\n\t' + sys.argv[0] + ' --accession=CP000020 --version=2\n\t' + sys.argv[0] + ' --av=CP000020_2\n\t' + sys.argv[0] + ' --latest\t(run on everything since script last ran)\n\t' + sys.argv[0] + ' --backfill\t(run on everything since last backfill)\n\t' + sys.argv[0] + ' --date=2012-11-05\t(run on everything modified since date)\n\toptional:\t--maketag=populate_tax\n\t\t--cron (if running from cron)\n');
     sys.exit(2)
-
-def db_connect():
-    #TODO pull this out into a module -- I think Steve has one
-    db = MySQLdb.connect(host="mysql", port=3306,db="steve_private", read_default_file="~/.my.cnf")
-    cur = db.cursor()
-    return cur 
 
 def register_job(accession, version, maketag, cronid):
     job_id = 0
@@ -44,7 +40,7 @@ def register_job(accession, version, maketag, cronid):
         sys.stderr.write("maketag " + maketag + " is invalid.\n")
         usage()
     job_uuid = uuid.uuid1()
-    cur=db_connect()
+    cur=db_connect(env)
     cur.execute("""INSERT INTO active_job (job_id, submission_time, job_uuid, accession, version, status, cron_id) VALUES (%s, now(), %s, %s, %s, 'In Progress', %s)""", (job_id, job_uuid, accession, version, cronid))
     return str(job_uuid)
 
@@ -59,7 +55,7 @@ def process_one_genome(accession, version, maketag, cronid):
     logging_dir = "/home/panfs/cbs/projects/cge/data/public/genome_sync/log/"
     filename = "./command" + "_" + accession + "_" + job_uuid
     f = open(filename, 'w')
-    string = "make -i -k" + maketag + "ACCESSION=" + accession + "VERSION=" + str(version) + "JOB_UUID=" + job_uuid
+    string = "make -i -k " + maketag + " ACCESSION=" + accession + " VERSION=" + str(version) + " JOB_UUID=" + job_uuid
     f.write(string)
     f.close()
     call(["qsub", "-l", "mem=4gb,walltime=3600,ncpus=1", "-N", accession + "_" + str(version) + "_" + job_uuid, "-r", "y", filename])
@@ -67,20 +63,24 @@ def process_one_genome(accession, version, maketag, cronid):
  
 def get_last_runtime(backfill, cron_id):
     # check in db for latest runtime
-    cur = db_connect()
+    cur = db_connect(env)
     if backfill:
         cur.execute("""SELECT start_time FROM cron_log WHERE runas = 'backfill' and id != %s ORDER BY start_time DESC LIMIT 1""", cron_id)
     else:
         cur.execute("""SELECT start_time FROM cron_log WHERE id != %s ORDER BY start_time DESC LIMIT 1""", cron_id)
     time = 0
-    for row in cur.fetchall():
-        time = row[0]
-        if debug:
-            print "last run time is " + str(time)
-    return time
+    rows = cur.fetchall()
+    if rows:
+        for row in rows:
+            time = row['start_time']
+            if debug:
+                print "last run time is " + str(time)
+        return time
+    else:
+        return "1970-01-01"
 
 def log_new_run(runas):
-    cur=db_connect()
+    cur=db_connect(env)
     cur.execute("""INSERT INTO cron_log (start_time, runas) VALUES (now(), %s)""", runas)
     #TODO error checking
     cronid = cur.lastrowid
@@ -88,16 +88,24 @@ def log_new_run(runas):
 
 def new_genomes(time):
     # get list of all new genomes added since last runtime
-    cur=db_connect()
-    cur.execute("""SELECT accession, version FROM bioproject, genome, replicon WHERE genome.bioproject_id = bioproject.bioproject_id AND genome.genome_id = replicon.genome_id AND modify_date >= %s""", (time)) 
+    cur=db_connect(env)
+    if time == "all":
+        cur.execute("""SELECT accession, version FROM bioproject, genome, replicon WHERE genome.bioproject_id = bioproject.bioproject_id AND genome.genome_id = replicon.genome_id""")
+    else:
+        cur.execute("""SELECT accession, version FROM bioproject, genome, replicon WHERE genome.bioproject_id = bioproject.bioproject_id AND genome.genome_id = replicon.genome_id AND modify_date >= %s""", (time)) 
     return cur.fetchall()
 
-def process_new_genomes(backfill, maketag, cronid):
-    last_runtime = get_last_runtime(backfill, cronid)
-    for accession, version in new_genomes(last_runtime):
+def process_old_genomes(date, maketag, cronid):
+    for row in new_genomes(date):
+        accession = row['accession']
+        version = row['version']
         if debug:
             print "accession = " + accession + "\tversion = " + str(version)
         process_one_genome(accession, version, maketag, cronid)
+    
+def process_new_genomes(backfill, maketag, cronid):
+    last_runtime = get_last_runtime(backfill, cronid)
+    process_old_genomes(last_runtime, maketag, cronid)
     
 def failed_genomes():
     # get list of all genomes to reprocess;
@@ -109,7 +117,7 @@ def process_failed_genomes(maketag, cronid):
 
 def main(argv):
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "h", ["help", "latest", "accession=", "version=", "av=", "backfill", "maketag=", "cron"])
+        opts, args = getopt.getopt(sys.argv[1:], "h", ["help", "latest", "accession=", "version=", "av=", "backfill", "date=", "maketag=", "cron"])
     except getopt.GetoptError as err:
         sys.stderr.write(str(err) + "\n")
         usage()
@@ -117,6 +125,7 @@ def main(argv):
     accession = ""
     version = ""
     backfill = False
+    date = False
     maketag = "single_genome"
     runas = "oneoff"
     for o, a in opts:
@@ -137,6 +146,10 @@ def main(argv):
             plan = "all"
             backfill = True
             runas = "backfill"
+        elif o in ("--date"):
+            plan = "all"
+            runas = "oneoff"
+            date = a
         elif o in ("--maketag"):
             maketag = a
         elif o in ("--cron"):
@@ -146,7 +159,11 @@ def main(argv):
             usage()
     if plan == "all":
         cronid = log_new_run(runas)
-        process_new_genomes(backfill, maketag, cronid)
+        if date:
+            process_old_genomes(date, maketag, cronid)
+        else:
+            process_new_genomes(backfill, maketag, cronid)
+
         #process_failed_genomes(maketag, cronid) TODO
     elif plan == "one":
         if version == "" or accession == "":

@@ -4,6 +4,7 @@ import os, sys, getopt;
 import inspect
 from genomeanalysis.common import *
 
+env = "prod"
 
 def usage():
    sys.stderr.write(sys.argv[0] + ' -i <inputfile> [-o <outputfile>]\n')
@@ -96,17 +97,24 @@ def convert(inputfile, outputfile):
 
          SeqIO.write(record, output_handle, "fasta")
 
-         sys.stderr.write("record id: " + record.id + "\n")
-         sys.stderr.write("record length: " + str(len(record)) + "\n")
-         sys.stderr.write("accession: " + accession + "\n")
-         sys.stderr.write("version: " + version + "\n")
-         sys.stderr.write("number of genes: " + str(number_genes) + "\n")
-         sys.stderr.write("number of contigs: " + str(number_contigs) + "\n")
+         #sys.stderr.write("record id: " + record.id + "\n")
+         #sys.stderr.write("record length: " + str(len(record)) + "\n")
+
+         sys.stderr.write("replicon_length: " + str(replicon_length) + "\n")
          sys.stderr.write("nonstd_bases: " + str(nonstd_bases) + "\n")
          sys.stderr.write("percent_at: " + str(percent_at) + "\n")
+         sys.stderr.write("number of genes: " + str(number_genes) + "\n")
+         sys.stderr.write("number of contigs: " + str(number_contigs) + "\n")
+         sys.stderr.write("accession: " + accession + "\n")
+         sys.stderr.write("version: " + str(version) + "\n")
 
-         cur = db_connect()
-         cur.execute("""UPDATE replicon SET stat_size_bp = %s, stat_number_nonstd_bases = %s, stat_perc_at = %s, stat_number_of_genes = %s, stat_number_of_contigs = %s WHERE accession = %s and version = %s""", (replicon_length, nonstd_bases, percent_at, number_genes, number_contigs, accession, version))
+         cur = db_connect(env)
+         try: 
+            sys.stderr.write("writing all that to db\n")
+            cur.execute("""UPDATE replicon SET stat_size_bp = %s, stat_number_nonstd_bases = %s, stat_perc_at = %s, stat_number_of_genes = %s, stat_number_of_contigs = %s WHERE accession = %s and version = %s""", (replicon_length, nonstd_bases, percent_at, number_genes, number_contigs, accession, version))
+            sys.stderr.write("ok\n")
+         except:
+            sys.stderr.write("could not write stats to db\n")
 
 
       if records > 1:
@@ -119,8 +127,9 @@ def convert(inputfile, outputfile):
    except IOError as e:
       # if one replicon is not present on disk, then the entire genome is invalid, so mark it as so in the database
 
-      cur = db_connect()
+      cur = db_connect(env)
       cur.execute("""UPDATE genome SET genome_validity = 'MISSING_CONTENT' where genome_id = %s""", (genome_id));
+      print "genome set to missing content"
 
       sys.stderr.write("convert_to_fasta: ioerror: " + str(e) + "\n")
       sys.exit(1)
