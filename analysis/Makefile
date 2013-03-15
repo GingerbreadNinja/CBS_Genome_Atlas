@@ -49,7 +49,7 @@ convert_to_fasta: $(ACCESSION)_$(VERSION).fna
 $(ACCESSION)_$(VERSION).fna:
 	@echo "Converting to fasta"
 	$(eval LOGID=$(shell python $(BIN_DIR)db_log.py --start --job=$(JOB) --job_uuid=$(JOB_UUID) --jobstep=convert_to_fasta --accession=$(ACCESSION) --version=$(VERSION)))
-	$(shell python convert_gbk_fasta.py -i $(GENOME_DIR)$(ACCESSION)_$(VERSION).gbk -o $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).fna > /dev/null; if [ $$? -eq 0 ]; then python $(BIN_DIR)db_log.py --finish=success --logid=$(LOGID); else python $(BIN_DIR)db_log.py --finish=failure --logid=$(LOGID); fi)
+	$(shell python $(BIN_DIR)convert_gbk_fasta.py -i $(GENOME_DIR)$(ACCESSION)_$(VERSION).gbk -o $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).fna > /dev/null; if [ $$? -eq 0 ]; then python $(BIN_DIR)db_log.py --finish=success --logid=$(LOGID); else python $(BIN_DIR)db_log.py --finish=failure --logid=$(LOGID); fi)
 
 rnammer: $(ACCESSION)_$(VERSION).rrna
 
@@ -63,7 +63,7 @@ $(ACCESSION)_$(VERSION).rrna: $(ACCESSION)_$(VERSION).fna
 rnammer-stats: 
 	@echo "Running stats for rnammer"
 	$(eval LOGID=$(shell python $(BIN_DIR)db_log.py --start --job=$(JOB) --job_uuid=$(JOB_UUID) --jobstep=rnammer-stats --accession=$(ACCESSION) --version=$(VERSION)))
-	$(shell python rnammer_stats.py $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).rrna2 > /dev/null; if [ $$? -eq 0 ]; then python $(BIN_DIR)db_log.py --finish=success --logid=$(LOGID); else python $(BIN_DIR)db_log.py --finish=failure --logid=$(LOGID); fi)
+	$(shell python $(BIN_DIR)rnammer_stats.py $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).rrna2 > /dev/null; if [ $$? -eq 0 ]; then python $(BIN_DIR)db_log.py --finish=success --logid=$(LOGID); else python $(BIN_DIR)db_log.py --finish=failure --logid=$(LOGID); fi)
 
 trnascan: $(ACCESSION)_$(VERSION).trna
 
@@ -80,7 +80,7 @@ trnascan-stats: $(ACCESSION)_$(VERSION).trna
 populate-tax:
 	@echo "Running populate-tax"
 	$(eval LOGID=$(shell python $(BIN_DIR)db_log.py --start --job=$(JOB) --job_uuid=$(JOB_UUID) --jobstep=populate-tax --accession=$(ACCESSION) --version=$(VERSION)))
-	$(shell python populate_tax.py $(ACCESSION) $(VERSION); if [ $$? -eq 0 ]; then python $(BIN_DIR)db_log.py --finish=success --logid=$(LOGID); else python $(BIN_DIR)db_log.py --finish=failure --logid=$(LOGID); fi)
+	$(shell python $(BIN_DIR)populate_tax.py $(ACCESSION) $(VERSION); if [ $$? -eq 0 ]; then python $(BIN_DIR)db_log.py --finish=success --logid=$(LOGID); else python $(BIN_DIR)db_log.py --finish=failure --logid=$(LOGID); fi)
 	
 remove-job:
 	@echo "Removing job from db"

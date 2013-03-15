@@ -53,13 +53,15 @@ def process_one_genome(accession, version, maketag, cronid):
 
     # TODO get this information from a config file
     logging_dir = "/home/panfs/cbs/projects/cge/data/public/genome_sync/log/"
-    filename = "./command" + "_" + accession + "_" + job_uuid
-    f = open(filename, 'w')
-    string = "make -i -k " + maketag + " ACCESSION=" + accession + " VERSION=" + str(version) + " JOB_UUID=" + job_uuid
-    f.write(string)
-    f.close()
-    call(["qsub", "-l", "mem=4gb,walltime=3600,ncpus=1", "-N", accession + "_" + str(version) + "_" + job_uuid, "-r", "y", filename])
-    #call(["xmsub", "-l", "mem=4gb,walltime=3600,procs=4,partition=cge-cluster", "-q cge", "-de", "-d", logging_dir, "-ro", logging_dir + accession + "_" + job_uuid + ".log", "-re", logging_dir + accession + "_" + job_uuid + ".out", "-N", accession + "_" + str(version) + "_" + job_uuid, "-r", "y", "make -i -k", maketag, "ACCESSION=" + accession, "VERSION=" + str(version), "JOB_UUID=" + job_uuid])
+    makefile = "/home/people/helen/CBS_Genome_Atlas/analysis/Makefile"
+    #filename = "./command" + "_" + accession + "_" + job_uuid
+    #f = open(filename, 'w')
+    #string = "make -i -k " + maketag + " ACCESSION=" + accession + " VERSION=" + str(version) + " JOB_UUID=" + job_uuid
+    #f.write(string)
+    #f.close()
+    #call(["qsub", "-l", "mem=4gb,walltime=3600,ncpus=1", "-N", accession + "_" + str(version) + "_" + job_uuid, "-r", "y", filename])
+    # am I supposed to add "-q cge" here?  
+    call(["xmsub", "-l", "mem=4gb,walltime=3600,procs=4,partition=cge-cluster", "-de", "-d", logging_dir, "-ro", logging_dir + accession + "_" + job_uuid + ".log", "-re", logging_dir + accession + "_" + job_uuid + ".out", "-N", accession + "_" + str(version) + "_" + job_uuid, "-r", "y", "make -i -k --file=" + makefile, maketag, "ACCESSION=" + accession, "VERSION=" + str(version), "JOB_UUID=" + job_uuid])
  
 def get_last_runtime(backfill, cron_id):
     # check in db for latest runtime
