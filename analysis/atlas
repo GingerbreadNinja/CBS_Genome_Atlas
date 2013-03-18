@@ -78,7 +78,7 @@ my @queries = &extractQuery if (`grep "genomemap.gz" ${config}`);
 
 #print STDOUT "# Query: ",join ("::", @queries), "\n";
 #print STDOUT "# Make reference file backup and create database ...\n";
-`${BINDIR}saco_extract -I genbank -O fasta -t ${organism} > ${organism}.ref.fsa`;
+`python ${BINDIR}convert_gbk_fasta.py -i ${organism} -o ${organism}.ref.fsa`;
 `formatdb -i ${organism}.ref.fsa -p T`;
 
 foreach(@queries){
@@ -287,7 +287,7 @@ sub repeats {
 	`formatdb -i ${organism}.db -p F -t ${organism}.db`;
 	`blastall -p blastn -F F -g F -d ${organism}.db -e 1 -i ${organism}.db -o ${organism}.blast`;
 	
-	my @blasttable = `indirect/blastntable.pl ${organism}.blast`;
+	my @blasttable = `${BINDIR}blastntable.pl ${organism}.blast`;
 	#"${organism}.blast"
 	my @files = ("${organism}.db", "${organism}.db.nhr", "${organism}.db.nin", "${organism}.db.nsq", "formatdb.log", "error.log");
  	foreach (@files){ unlink $_ }
