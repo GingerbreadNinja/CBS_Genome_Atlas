@@ -100,5 +100,5 @@ remove-job:
 	$(shell python $(BIN_DIR)db_log.py --remove_job --job_uuid=$(JOB_UUID); if [ $$? -eq 0 ]; then python $(BIN_DIR)db_log.py --finish=success --logid=$(LOGID); else python $(BIN_DIR)db_log.py --finish=failure --logid=$(LOGID); fi)
 
 clean:
-	rm $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).fna $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).rrna $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).trna $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).genomeatlas.ps
+	rm $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).fna $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).rrna $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).trna $(GENOME_DIR)$(ACCESSION)_$(VERSION).gbk.* $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).*
 
