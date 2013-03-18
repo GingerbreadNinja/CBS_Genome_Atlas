@@ -8,7 +8,7 @@ use strict;
 use Getopt::Long;
 use Data::Dumper;
 
-my $BINDIR = '/home/projects/steve/atlases/';
+my $BINDIR = '/home/people/helen/CBS_Genome_Atlas/analysis/';
 my $organism;
 my @query;
 
@@ -38,7 +38,7 @@ while (<GBK>){
 $name =~ s/["]+//g;
 $name =~ s/[']+//g;
 
-open (MYFILE, "> ${organism}.atlas.cf");
+open (MYFILE, "> ${organism}.atlas.cfg");
 printf MYFILE ("genomesize $length;
 stamp \"BLAST ATLAS\";
 legendpage;

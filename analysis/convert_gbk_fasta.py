@@ -4,7 +4,7 @@ import os, sys, getopt;
 import inspect
 from genomeanalysis.common import *
 
-env = "prod"
+env = get_env()
 
 def usage():
    sys.stderr.write(sys.argv[0] + ' -i <inputfile> [-o <outputfile>]\n')
@@ -33,9 +33,9 @@ def convert(inputfile, outputfile):
       replicon_length = 0
       percent_gc = 0
       number_contigs = 1
-      
-      for record in sequences:
 
+      for record in sequences:
+         records += 1;
          name = record.id
          (accession, version) = parse_string(name)
          replicon_length = len(record)
@@ -43,7 +43,6 @@ def convert(inputfile, outputfile):
          percent_at = 100 - percent_gc
          percent_at = '{:.2f}'.format(percent_at)
          number_genes = 0
-         #score = 1
 
          if record.annotations['data_file_division'] == 'CON':
             try:
@@ -57,8 +56,6 @@ def convert(inputfile, outputfile):
                    if contigs != None:
                       number_contigs = contigs.count(",") + 1  # contigs are separated by commas
                       n = number_contigs
-                      #while n - (25 * replicon_length / 1000000) > 0:
-                      #  score = score - 0.2 #score reduces by 0.2 for every 25 contigs per megabase
                    else:
                       sys.stderr.write('convert_to_fasta: no contigs found in contig file\n')
                       sys.exit(1)
@@ -80,12 +77,6 @@ def convert(inputfile, outputfile):
 
          nonstd_bases = replicon_length - (number_a + number_c + number_g + number_t) 
          fraction_nonstandard = nonstd_bases / replicon_length
-
-         # TODO this is broken, but should be calculated on the genome level anyway
-         #score = score - 10 * (fraction_nonstandard) 
-         #if score < 0.1:
-         #   score = 0.1
-         #sys.stderr.write("score is: " + str(score) + "\n")
 
          if len(record.seq) < 1:  #TODO this doesn't actually work to get the length of teh nucleotide sequence 
             sys.stderr.write("convert_to_fasta: Found record with length less than 1:" + str(len(record.seq)) + "\n")

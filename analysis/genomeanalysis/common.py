@@ -11,6 +11,10 @@ top_level_phyla = (1, 68336, 2, 2157, 131550, 51290, 200795, 51290)
 
 env = "prod"
 
+def get_env():
+    env = "prod"
+    return env
+
 def db_connect_transaction(env):
     if env == "test":
         db = MySQLdb.connect(host="mysql", port=3306,db="steve_private", read_default_file="~/.my.cnf")
@@ -41,17 +45,18 @@ def db_connect_tax():
     return cur 
 
 def parse_filename(inputfile):
-   basename = os.path.basename(inputfile)
-   return parse_string(basename)
+    basename = os.path.basename(inputfile)
+    return parse_string(basename)
 
 def parse_string(string):
-   if "_" in string:
-      accession = string[:string.find('_')] # everything up to the underscore is the accession
-      version = string[-5]; # version is the last thing before the 3 character extension
-   else:
-      accession = string[:string.find('.')] # everything up to the underscore is the accession
-      version = string[-1]; # version is the last thing 
-   return (accession, version)
+    if "_" in string: # then this is a complete genome in the form accession_version
+        accession = string[:string.find('_')] # everything up to the underscore is the accession
+        version = string[-5]; # version is the last thing before the 3 character extension
+    elif "." in string: #then this is in an gbk or rnammer file and is in the form accession.version
+        accession = string[:string.find('.')] # everything up to the dot is the accession
+        version = string[-1] # version is the last thing 
+         
+    return (accession, version)
 
 def get_genome_id(accession, version):
    cur = db_connect(env)

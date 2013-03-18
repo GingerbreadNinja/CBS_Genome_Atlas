@@ -79,15 +79,15 @@ trnascan-stats: $(ACCESSION)_$(VERSION).trna
 
 genomeatlas: $(ACCESSION)_$(VERSION).genomeatlas.ps
 
-$(ACCESSION)_$(VERSION).genomeatlas.ps: $(ACCESSION)_$(VERSION).atlas.cfg
-	@echo "Running Genome Atlas"
-        $(eval LOGID=$(shell python $(BIN_DIR)db_log.py --start --job=$(JOB) --job_uuid=$(JOB_UUID) --jobstep=genomeatlas-run --accession=$(ACCESSION) --version=$(VERSION)))
-	$(shell $(BIN_DIR)/atlas -f $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).gbk -c $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).atlas.cfg -o $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).genomeatlas.ps  > /dev/null 2> /dev/null; if [ $$? -eq 0 ]; then python $(BIN_DIR)db_log.py --finish=success --logid=$(LOGID); else python $(BIN_DIR)db_log.py --finish=failure --logid=$(LOGID); fi)
+$(ACCESSION)_$(VERSION).genomeatlas.ps: $(ACCESSION)_$(VERSION).gbk.atlas.cfg
+	@echo "Running Genome Atlas eval"
+	$(eval LOGID=$(shell python $(BIN_DIR)db_log.py --start --job=$(JOB) --job_uuid=$(JOB_UUID) --jobstep=genomeatlas-run --accession=$(ACCESSION) --version=$(VERSION)))
+	$(shell perl $(BIN_DIR)/atlas -f $(GENOME_DIR)$(ACCESSION)_$(VERSION).gbk -c $(GENOME_DIR)$(ACCESSION)_$(VERSION).gbk.atlas.cfg -o $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).genomeatlas.ps > /dev/null 2> /dev/null; if [ $$? -eq 0 ]; then python $(BIN_DIR)db_log.py --finish=success --logid=$(LOGID); else python $(BIN_DIR)db_log.py --finish=failure --logid=$(LOGID); fi)
 
-$(ACCESSION)_$(VERSION).atlas.cfg:
-	@echo "Generating atlas CFG file
+$(ACCESSION)_$(VERSION).gbk.atlas.cfg:
+	@echo "Generating atlas CFG file eval"
 	$(eval LOGID=$(shell python $(BIN_DIR)db_log.py --start --job=$(JOB) --job_uuid=$(JOB_UUID) --jobstep=genomeatlas-config --accession=$(ACCESSION) --version=$(VERSION)))
-	$(shell $(BIN_DIR)/atlas_createConfig -ref $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).gbk > /dev/null 2> /dev/null; if [ $$? -eq 0 ]; then python $(BIN_DIR)dblog.py --finish=success --logid=$(LOGID); else python $(BIN_DIR)db_log.py --finish=failure --logid=$(LOGID); if)
+	$(shell perl $(BIN_DIR)atlas_createConfig -ref $(GENOME_DIR)$(ACCESSION)_$(VERSION).gbk > /dev/null 2> /dev/null; if [ $$? -eq 0 ]; then python $(BIN_DIR)db_log.py --finish=success --logid=$(LOGID); else python $(BIN_DIR)db_log.py --finish=failure --logid=$(LOGID); fi)
 
 populate-tax:
 	@echo "Running populate-tax"
