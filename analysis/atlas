@@ -34,7 +34,7 @@ print "# \tIf not specified no plot will be made.\n";
 #print "# \tA plot can subsequently be created with \`${GENEWIZ} -p <outputFile> <configFile>\`\n";
 print "# -tidy\tOnly used if plot is created.\n";
 print "# \tIf set, all created files except for the plot will be deleted when the program finishes\n#\n";
-exit;
+exit 1;
 }
 
 GetOptions (	"f=s" => \$organism,
@@ -398,14 +398,14 @@ sub repeats {
 	`gzip -c ${organism}.blast.Direct > ${organism}.blast.Direct.gz`;
 	if ($? != 0) {
 		print STDOUT "# STATUS - Gzip direct failed on file ${organism}.blast.Direct: $!\n";
-		exit;
+		exit 1;
 	}elsif	($? == 0 ) { print STDOUT "# STATUS - Gzip direct success on file ${organism}.blast.Direct\n"; }
 
 
 	`gzip -c ${organism}.blast.Inverted > ${organism}.blast.Inverted.gz`;
 	if ($? != 0) {
 		print STDOUT "# STATUS - Gzip direct failed on file ${organism}.blast.Inverted: $!\n";
-		exit;
+		exit 1;
 	}elsif	($? == 0 ) { print STDOUT "# STATUS - Gzip direct success on file ${organism}.blast.Inverted\n"; }
 
 	

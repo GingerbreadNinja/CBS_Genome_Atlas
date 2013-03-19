@@ -49,7 +49,7 @@ convert_to_fasta: $(ACCESSION)_$(VERSION).fna
 $(ACCESSION)_$(VERSION).fna:
 	@echo "Converting to fasta"
 	$(eval LOGID=$(shell python $(BIN_DIR)db_log.py --start --job=$(JOB) --job_uuid=$(JOB_UUID) --jobstep=convert_to_fasta --accession=$(ACCESSION) --version=$(VERSION)))
-	$(shell python $(BIN_DIR)convert_gbk_fasta.py -i $(GENOME_DIR)$(ACCESSION)_$(VERSION).gbk -o $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).fna > /dev/null; if [ $$? -eq 0 ]; then python $(BIN_DIR)db_log.py --finish=success --logid=$(LOGID); else python $(BIN_DIR)db_log.py --finish=failure --logid=$(LOGID); fi)
+	$(shell python $(BIN_DIR)convert_gbk_fasta.py -i $(GENOME_DIR)$(ACCESSION)_$(VERSION).gbk -o $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).fna --write_stats> /dev/null; if [ $$? -eq 0 ]; then python $(BIN_DIR)db_log.py --finish=success --logid=$(LOGID); else python $(BIN_DIR)db_log.py --finish=failure --logid=$(LOGID); fi)
 
 rnammer: $(ACCESSION)_$(VERSION).rrna
 
@@ -77,17 +77,22 @@ trnascan-stats: $(ACCESSION)_$(VERSION).trna
 	$(eval LOGID=$(shell python $(BIN_DIR)db_log.py --start --job=$(JOB) --job_uuid=$(JOB_UUID) --jobstep=trnascan-stats --accession=$(ACCESSION) --version=$(VERSION)))
 	$(shell python $(BIN_DIR)trnascan_stats.py $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).trna; if [ $$? -eq 0 ]; then python $(BIN_DIR)db_log.py --finish=success --logid=$(LOGID); else python $(BIN_DIR)db_log.py --finish=failure --logid=$(LOGID); fi)
 
-genomeatlas: $(ACCESSION)_$(VERSION).genomeatlas.ps
+genomeatlas: $(ACCESSION)_$(VERSION).genomeatlas.ps genomeatlas-thumbnail
 
 $(ACCESSION)_$(VERSION).genomeatlas.ps: $(ACCESSION)_$(VERSION).gbk.atlas.cfg
 	@echo "Running Genome Atlas eval"
 	$(eval LOGID=$(shell python $(BIN_DIR)db_log.py --start --job=$(JOB) --job_uuid=$(JOB_UUID) --jobstep=genomeatlas-run --accession=$(ACCESSION) --version=$(VERSION)))
-	$(shell perl $(BIN_DIR)/atlas -f $(GENOME_DIR)$(ACCESSION)_$(VERSION).gbk -c $(GENOME_DIR)$(ACCESSION)_$(VERSION).gbk.atlas.cfg -o $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).genomeatlas.ps > /dev/null 2> /dev/null; if [ $$? -eq 0 ]; then python $(BIN_DIR)db_log.py --finish=success --logid=$(LOGID); else python $(BIN_DIR)db_log.py --finish=failure --logid=$(LOGID); fi)
+	$(shell $(BIN_DIR)atlas -f $(GENOME_DIR)$(ACCESSION)_$(VERSION).gbk -c $(GENOME_DIR)$(ACCESSION)_$(VERSION).gbk.atlas.cfg -o $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).genomeatlas.ps > /dev/null 2> /dev/null; if [ $$? -eq 0 ]; then python $(BIN_DIR)db_log.py --finish=success --logid=$(LOGID); else python $(BIN_DIR)db_log.py --finish=failure --logid=$(LOGID); fi)
 
 $(ACCESSION)_$(VERSION).gbk.atlas.cfg:
 	@echo "Generating atlas CFG file eval"
 	$(eval LOGID=$(shell python $(BIN_DIR)db_log.py --start --job=$(JOB) --job_uuid=$(JOB_UUID) --jobstep=genomeatlas-config --accession=$(ACCESSION) --version=$(VERSION)))
 	$(shell perl $(BIN_DIR)atlas_createConfig -ref $(GENOME_DIR)$(ACCESSION)_$(VERSION).gbk > /dev/null 2> /dev/null; if [ $$? -eq 0 ]; then python $(BIN_DIR)db_log.py --finish=success --logid=$(LOGID); else python $(BIN_DIR)db_log.py --finish=failure --logid=$(LOGID); fi)
+
+genomeatlas-thumbnail: 
+	@echo "Creating thumbnails"
+	$(eval LOGID=$(shell python $(BIN_DIR)db_log.py --start --job=$(JOB) --job_uuid=$(JOB_UUID) --jobstep=genomeatlas-thumbnail --accession=$(ACCESSION) --version=$(VERSION)))
+	$(shell $(BIN_DIR)convert -rotate 90 -resize '425x300' -gravity West -crop '300x300+0+0' +repage $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).genomeatlas.ps $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).atlasthumb.png && scp $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).atlasthumb-1.png root@gatlas:/home/genome_atlas/static/thumbnails/$(ACCESSION)_$(VERSION).atlasthumb.png; if [ $$? -eq 0 ]; then python $(BIN_DIR)db_log.py --finish=success --logid=$(LOGID); else python $(BIN_DIR)db_log.py --finish=failure --logid=$(LOGID); fi)
 
 populate-tax:
 	@echo "Running populate-tax"

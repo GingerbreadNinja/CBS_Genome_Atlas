@@ -15,10 +15,10 @@ my @query;
 GetOptions ("ref=s" => \$organism);
 
 print "# You must define a reference genome in GenBank format. Use -ref <reference>.gbk.\n" unless defined $organism;
-unless (defined $organism){ exit }
+unless (defined $organism){ exit 1 }
 
 my $gbkTest = `grep LOCUS $organism`;
-unless ($gbkTest =~ m/LOCUS/) { print "# ERROR: Probably not a GenBank file\n"; exit }
+unless ($gbkTest =~ m/LOCUS/) { print "# ERROR: Probably not a GenBank file\n"; exit 1 }
 
 chomp(my $length = `python $BINDIR/seqlength.py $organism`);
 
