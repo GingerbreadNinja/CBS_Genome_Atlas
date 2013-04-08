@@ -6,7 +6,7 @@ use strict;
 use Getopt::Long;
 use Data::Dumper;
 
-my $BINDIR = "/home/projects/steve/atlases/";
+my $BINDIR = "/home/people/helen/CBS_Genome_Atlas/analysis/";
 my $GENEWIZ = "${BINDIR}genewiz";
 
 #=put
