@@ -38,7 +38,7 @@ def main(argv):
             if remove_all_replicons_for_genome:
                 replicons_to_remove = get_replicons(cur, genome_id)
             else:
-                replicons_to_remove = {'accession': accession, 'version': version}
+                replicons_to_remove = [{'accession': accession, 'version': version}]
 
             for r in replicons_to_remove:
                 accession = r['accession']

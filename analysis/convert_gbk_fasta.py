@@ -11,7 +11,7 @@ def usage():
     sys.exit(2)
 
 def get_length(record):
-    print "length " + str(len(record))
+    sys.stderr.write( "length " + str(len(record)) + "\n")
     return len(record)
 
 def get_nonstd_bases(record):
@@ -20,7 +20,7 @@ def get_nonstd_bases(record):
     number_g = record.seq.count("G")
     number_t = record.seq.count("T")
     nonstd_bases = get_length(record) - (number_a + number_c + number_g + number_t) 
-    print "nonstd " + str(nonstd_bases)
+    sys.stderr.write( "nonstd " + str(nonstd_bases) + "\n")
     return nonstd_bases
 
 def get_number_genes(record):
@@ -32,27 +32,30 @@ def get_number_genes(record):
 
 def get_number_contigs(record, inputfile):
     number_contigs = 1
-    if record.annotations['data_file_division'] == 'CON':
-        try:
-             sys.stderr.write("have contigs, opening contig file\n")
-             contig_handle = open(inputfile + ".contig", "rU")
-             contig_sequences = SeqIO.parse(contig_handle, "genbank")
-             contig_records = 0
-             for contig_record in contig_sequences:
-                 contig_records += 1
-                 contigs = contig_record.annotations.get('contig',None)
-                 if contigs != None:
-                     number_contigs = contigs.count(",") + 1  # contigs are separated by commas
-                 else:
-                     sys.stderr.write('convert_to_fasta: no contigs found in contig file\n')
-                     sys.exit(1)
-             if contig_records > 1:
-                 sys.stderr.write('convert_to_fasta: Found more than 1 locus in contig file\n')
-                 sys.exit(1)
-
-        except IOError as e:
-            sys.exit(1)
-    return number_contigs
+    try:
+        if record.annotations['data_file_division'] == 'CON':
+            try:
+                sys.stderr.write("have contigs, opening contig file\n")
+                contig_handle = open(inputfile + ".contig", "rU")
+                contig_sequences = SeqIO.parse(contig_handle, "genbank")
+                contig_records = 0
+                for contig_record in contig_sequences:
+                    contig_records += 1
+                    contigs = contig_record.annotations.get('contig',None)
+                    if contigs != None:
+                        number_contigs = contigs.count(",") + 1  # contigs are separated by commas
+                    else:
+                        sys.stderr.write('convert_to_fasta: no contigs found in contig file\n')
+                        sys.exit(1)
+                if contig_records > 1:
+                    sys.stderr.write('convert_to_fasta: Found more than 1 locus in contig file\n')
+                    sys.exit(1)
+    
+            except IOError as e:
+                sys.exit(1)
+        return number_contigs
+    except:
+        return number_contigs
 
 def get_at_bp(record):
     percent_gc = GC(record.seq)
@@ -63,8 +66,19 @@ def get_at_bp(record):
 def convert(inputfile, outputfile, write_stats_db):
     sys.stderr.write('Input file is ' + inputfile + "\n")
     sys.stderr.write('Output file is ' + outputfile + "\n")
+    file_name, file_ext = os.path.splitext(inputfile)
+    input_format = ""
+    if file_ext in (".fasta", ".fsa", ".fna", ".fa"):
+        input_format = "fasta"
+    elif file_ext in (".gbk", ".genbank"):
+        input_format = "genbank"
+    else:
+        sys.stderr.write("Unrecognized file extension: " + file_ext + ".  Please specify fasta or genbank.\n")
+        usage()
     
     (accession, version) = parse_filename(inputfile)
+    sys.stderr.write('acccession ' + accession + "\n")
+    sys.stderr.write('version ' + version + "\n")
     genome_id = get_genome_id(accession, version)
     if (genome_id > 0):
         if (not genome_is_valid(genome_id)):
@@ -75,9 +89,14 @@ def convert(inputfile, outputfile, write_stats_db):
         exit(1)
 
     try:
-        input_handle = open(inputfile, "rU")
+        if str(version) == "0":
+            sys.stderr.write('Resetting input file for WGS/SRA/TRD with version of 0\n')
+            inputfile = os.path.dirname(inputfile) + "/" + accession + file_ext
+        input_handle_write = open(inputfile, "rU")
+        input_handle_stats = open(inputfile, "rU")
         output_handle = open(outputfile, "w")
-        sequences = SeqIO.parse(input_handle, "genbank")
+        sequences_for_write = SeqIO.parse(input_handle_write, input_format)
+        sequences_for_stats = SeqIO.parse(input_handle_stats, input_format)
 
         number_records = 0
 
@@ -87,15 +106,15 @@ def convert(inputfile, outputfile, write_stats_db):
         number_genes = 0
         number_contigs = 0
 
-        for record in sequences:
+        for record in sequences_for_stats:
+            sys.stderr.write("*****have record\n")
             number_records += 1 #number of records in file (different from number of contigs)
-            if write_stats_db:
-                (accession, version) = parse_string(record.id)
-                replicon_length += get_length(record) 
-                nonstd_bases += get_nonstd_bases(record)
-                at_bp += get_at_bp(record)
-                number_genes += get_number_genes(record)
-                number_contigs += get_number_contigs(record, inputfile) #number of contigs; a single record may hold multiple contigs
+            #(accession, version) = parse_string(record.id) #always take accession from the filename
+            replicon_length += get_length(record) 
+            nonstd_bases += get_nonstd_bases(record)
+            at_bp += get_at_bp(record)
+            number_genes += get_number_genes(record)
+            number_contigs += get_number_contigs(record, inputfile) #number of contigs; a single record may hold multiple contigs
 
         if write_stats_db:
             sys.stderr.write("replicon_length: " + str(replicon_length) + "\n")
@@ -115,21 +134,22 @@ def convert(inputfile, outputfile, write_stats_db):
             except:
                 sys.stderr.write("could not write stats to db\n")
 
-
-        if number_records > 1:
-            sys.stderr.write("cannot write FASTA output for multilocus gbk file\n")
+        #now with multilocus fasta support
+        if input_format == "fasta":
+            sys.stderr.write("not writing output since input format is already fasta")
         else:
-            SeqIO.write(record, output_handle, "fasta") 
+            SeqIO.write(sequences_for_write, output_handle, "fasta") 
 
          
         output_handle.close()
-        input_handle.close()
+        input_handle_write.close()
+        input_handle_stats.close()
     except IOError as e:
         # if one replicon is not present on disk, then the entire genome is invalid, so mark it as so in the database
         if write_stats_db:
             cur = db_connect(env)
             cur.execute("""UPDATE genome SET genome_validity = 'MISSING_CONTENT' where genome_id = %s""", (genome_id));
-            print "genome set to missing content"
+            sys.stderr.write("genome set to missing content\n")
 
         sys.stderr.write("convert_to_fasta: ioerror: " + str(e) + "\n")
         sys.exit(1)

@@ -14,6 +14,7 @@ def usage():
     sys.exit(2)
 
 def write_stats(accession, version, start_location, end_location, complementary_strand, molecule, score, sequence):
+    sys.stderr.write("adding rrna entry\n")
     if accession == "" or version == "" or start_location == "" or end_location == "" or complementary_strand == "" or molecule == "" or score == "" or sequence == "":
         sys.stderr.write("trnascan-stats: missing one of\n\taccession: " + accession + "\n\tversion: " + version + "\n\tstart_location: " + start_location + "\n\tend_location: " + end_location + "\n\tcomplementary_strand: " + complementary_strand + "\n\tmolecule: " + molecule + "\n\tscore " + score + "\n\tsequence: " + sequence + "\n")
         sys.exit(2)
@@ -30,8 +31,8 @@ def write_stats(accession, version, start_location, end_location, complementary_
 
 def parse_rrna_sequences(lines, filename):
 
-    accession = ""
-    version = ""
+    accession, version = parse_string(filename)
+
     start_location = ""
     end_location = ""
     complementary_strand = ""
@@ -43,7 +44,7 @@ def parse_rrna_sequences(lines, filename):
     # AGAGTTTGATCATGGCTCAGATTGAACGCTGGCGGCAGGCCTAACACATGCAAGTCGAGC
 
     for line in lines:
-        r_line = re.compile(r">rRNA_([A-Z]{2}[0-9]{6})\.([0-9]+)_([0-9]+)-([0-9]+)_DIR([-\+]) /molecule=(.*)_rRNA /score=([0-9]+.?[0-9]*)")
+        r_line = re.compile(r">rRNA_([A-Z]+[0-9]+)\.([0-9]+)_([0-9]+)-([0-9]+)_DIR([-\+]) /molecule=(.*)_rRNA /score=([0-9]+.?[0-9]*)")
 
         if line.startswith(">"): 
 
@@ -64,8 +65,8 @@ def parse_rrna_sequences(lines, filename):
             sequence = "" #this is the first line of the new block, so reset the sequence
 
             m = r_line.match(line)
-            accession = m.group(1)
-            version = m.group(2)
+            #accession = m.group(1)  #always take accession and version from filename
+            #version = m.group(2)
             start_location = m.group(3)
             end_location = m.group(4)
             complementary_strand = m.group(5)

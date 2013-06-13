@@ -38,7 +38,7 @@ def parse_predictions(lines, filename):
     sequence = ""
 
     for line in lines:
-        r_first_line = re.compile(r"[A-Z]{2}[0-9]{6}.[0-9]")
+        r_first_line = re.compile(r"[A-Z]+[0-9]+.[0-9]")
         r_start = re.compile(r"[0-9]+")
         r_seq = re.compile(r"[acgt][acgt]+")
         r_aa = re.compile(r"[A-Z][a-z][a-z]")
@@ -58,10 +58,14 @@ def parse_predictions(lines, filename):
         if line.startswith("sequence name="):
             accession = r_first_line.findall(line)[0]
             accession_test = accession.replace(".", "_")
-            if accession_test != filename:
-                sys.stderr.write("Accession number in file (" + accession + ") doesn't match accession number in filename (" + filename + ").  Aborting.\n")
-                sys.exit(3)
-            accession, version = parse_string(accession)
+            if filename.endswith("_0"):
+                sys.stderr.write("Skipping check that accession in file is same as accession in filename for WGS file\n")
+                accession, version = filename.split("_")
+            else:
+                if accession_test != filename:
+                    sys.stderr.write("Accession number in file (" + accession + ") doesn't match accession number in filename (" + filename + ").  Aborting.\n")
+                    sys.exit(3)
+                accession, version = parse_string(accession)
             continue; # skip first line
 
         if line.startswith("start position="):

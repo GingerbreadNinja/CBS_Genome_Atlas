@@ -46,25 +46,46 @@ def db_connect_tax():
 
 def parse_filename(inputfile):
     basename = os.path.basename(inputfile)
-    return parse_string(basename)
+    filename, extension = os.path.splitext(basename)
+    return parse_string(filename)
 
 def parse_string(string):
+    sys.stderr.write("parse string has: " + string + "\n")
     if "_" in string: # then this is a complete genome in the form accession_version
         accession = string[:string.find('_')] # everything up to the underscore is the accession
-        version = string[-5]; # version is the last thing before the 3 character extension
+        if "." in string:
+            version = string[-5]
+        else:
+            version = string[-1] # version is the last thing before the 3 character extension
+    elif "prodigal" in string: #then this is an SRA or other genomes source
+        accession = string[:12]
+        version = "0"
+    elif string.startswith("SRA") or string.startswith("TRD"):
+        accession = string[:12]
+        version = "0"
     elif "." in string: #then this is in an gbk or rnammer file and is in the form accession.version
-        accession = string[:string.find('.')] # everything up to the dot is the accession
-        version = string[-1] # version is the last thing 
-         
+        front = string[:string.find('.')]
+        back = string[string.find('.')+1:]
+        if back == "gbk": #then this is a WGS formatted accession
+            accession = front
+            version = string[-5]
+        else:
+            accession = front
+            version = string[-1]
+    else:
+        accession = string
+        version = "0"
     return (accession, version)
 
 def get_genome_id(accession, version):
+   print "for accession " + accession 
    cur = db_connect(env)
    try:
       cur.execute("""SELECT genome_id from replicon where accession = %s and version = %s""", (accession, version));
       row = cur.fetchone()
       if (row):
          genome_id = row['genome_id']
+         print " have genomeid " + str(genome_id)
          return genome_id
       else:
          sys.stderr.write("no genome_id found for accession=" + accession + " and version=" + version + "\n")
@@ -94,7 +115,8 @@ def get_genome_validity(genome_id):
 
 def genome_is_valid(genome_id):
    tag = get_genome_validity(genome_id)
-   if (tag == "WARNINGS" or tag == "INVALID"):
+   #if (tag == "WARNINGS" or tag == "INVALID"):
+   if (tag == "INVALID"):
       return False
    else:
       return True
@@ -109,8 +131,47 @@ def get_tax_parent(cur, env, tax_id):
     tax_cur.execute("""SELECT parent_tax_id FROM nodes WHERE tax_id = %s""", (tax_id))
     return tax_cur.fetchone()['parent_tax_id']
     
+def up_tax_tree(cur, accession, version):
+    #returns current tax_id, and all parents up to root
+    print "getting parents for accession = " + accession + " version = " + str(version)
+    cur.execute("""SELECT tax_id FROM displaygenome_replicon_stats WHERE accession = %s and version = %s""", (accession, version))
+    row = cur.fetchone()
+    tax_id = row['tax_id']
+    tax_ids = [tax_id]
+    new_tax_id = get_tax_parent(cur, "prod", tax_id)
+    while new_tax_id not in (1, 68336, 2, 2157, 131550, 51290, 200795, 51290):
+        tax_ids.append(new_tax_id)
+        new_tax_id = get_tax_parent(cur, "prod", new_tax_id)
+        print "got list: " + str(tax_ids)
+    tax_ids.append(1)
+    return tax_ids
 
+def get_tax_id(cur, accession, version):
+    cur.execute("""SELECT tax_id FROM displaygenome_replicon_stats WHERE accession = %s and version = %s""", (accession, version))
+    row = cur.fetchone()
+    tax_id = row['tax_id']
+    return tax_id
 
+def fix_one(cur, env, accession, version):
+    # we fix the values by removing the entry from the dg* tables (which uses data in the dg_replicon table only), then re-adding it (which re-reads data from the base replicon tables)
+    
+    genome_id = get_genome_id(accession, version)
+    parents = up_tax_tree(cur, accession, version)
+
+    replicon_data = remove_accession_from_dgreplicon(cur, env, accession, version)
+    genome_data = remove_accession_from_dggenome(cur, env, accession, version, genome_id)
+
+    for tax_id in parents:
+        remove_accession_from_dgtax(cur, env, tax_id, accession, version, replicon_data, genome_data)
+
+    tax_id, new_replicon_data = read_base_replicon_data(cur, accession, version)
+
+    add_accession_to_dgreplicon(cur, env, accession, version, tax_id, new_replicon_data)
+    new_genome_data = add_accession_to_dggenome(cur, env, accession, version, tax_id, new_replicon_data)
+    add_accession_to_dgtax(cur, env, accession, version, tax_id, new_replicon_data, new_genome_data)
+
+    for tax_id in parents:
+        add_accession_to_dgtax(cur, env, accession, version, tax_id, new_replicon_data, new_genome_data)
 
 def merge_score_genome(nonstd_bp, total_bp, contig_count, replicon_count):
     #calculated the same way as for the replicon, since the score is over the whole genome
@@ -187,10 +248,14 @@ def read_base_replicon_data(cur, accession, version):
         contig_count = row['stat_number_of_contigs']
         replicon_type = row['replicon_type']
         
-        cur.execute("""SELECT bioproject_id, release_date FROM bioproject WHERE bioproject_id IN (select bioproject_id from genome where genome_id = %s)""", (genome_id))
+        cur.execute("""SELECT bioproject_id, modify_date FROM bioproject WHERE bioproject_id IN (select bioproject_id from genome where genome_id = %s)""", (genome_id))
         row = cur.fetchone()
-        bioproject_id = row['bioproject_id']
-        release_date = row['release_date']
+        if row:
+            bioproject_id = row['bioproject_id']
+            release_date = row['modify_date']
+        else:
+            bioproject_id = 0
+            release_date = 0
     
         cur.execute("""SELECT genome_name, tax_id FROM genome WHERE genome_id = %s""", (genome_id))
         row = cur.fetchone()
@@ -270,7 +335,7 @@ def add_accession_to_dgreplicon(cur, env, accession, version, tax_id, all_data):
     row = cur.fetchone()
     if row:
         if (genome_id != row['genome_id']):
-            system.stderr.write("genome_id does not match genome_id in db.  Stopping.\n");
+            sys.stderr.write("genome_id does not match genome_id in db.  Stopping.\n");
 
     else:
         table = get_table('dgreplicon', env)
@@ -495,6 +560,7 @@ def replace_tax_entry_sum(new_value, old_value, cur_value_in_db):
 
 
 def add_accession_to_dgtax(cur, env, accession, version, tax_id, all_data, genome_data):
+    # adds only one entry to the given tax_id
     (release_date, genome_id, bioproject_id, genome_name, chromosome_count, plasmid_count, replicon_count, contig_count, total_bp, nonstd_bp, gene_count, at_bp, rrna_count, trna_count, replicon_type, score, gene_density, percent_at) = all_data
 
     sys.stderr.write( "ADDING " + accession + " to TAX " + str(tax_id) + "\n")
@@ -646,14 +712,37 @@ def add_accession_to_dgtax(cur, env, accession, version, tax_id, all_data, genom
 
 
 def remove_accession_from_dgreplicon(cur, env, accession, version):
+    # must be called before removing from genome
     sys.stderr.write( "REMOVING ACCESSION " + accession + " FROM REPLICON" + "\n")
-
     table = get_table('dgreplicon', env)
+    cur.execute("""SELECT * FROM %s WHERE accession = %%s and version = %%s""" % table, (accession, version))
+    replicon_data = cur.fetchone()
+    if not replicon_data:
+        sys.stderr.write("no replicon data for accession " + accession + " version " + version + "\n")
+        exit(1)
+    
     cur.execute("""DELETE FROM %s WHERE accession = %%s and version = %%s""" % table, (accession, version))
+    
+    #all_data
+    table = get_table('dggenome', env)
+    cur.execute("""SELECT * FROM %s WHERE genome_id = %%s""" % table, (replicon_data['genome_id']))
+    genome_data = cur.fetchone()
+    if not genome_data:
+        sys.stderr.write("no genome data for " + str(replicon_data['genome_id']) + "\n")
+    
+    if replicon_data['replicon_type'] == 'CHROMOSOME':
+        chromosome = 1
+        plasmid = 0
+    else:
+        chromosome = 0
+        plasmid = 1
+    return (genome_data['release_date'], replicon_data['genome_id'], genome_data['bioproject_id'], genome_data['genome_name'], chromosome, plasmid, 1, replicon_data['contig_count'], replicon_data['total_bp'], replicon_data['nonstd_bp'], replicon_data['gene_count'], replicon_data['at_bp'], replicon_data['rrna_count'], replicon_data['trna_count'], replicon_data['replicon_type'], replicon_data['score'], replicon_data['gene_density'], replicon_data['percent_at']) 
+
+
+
 
 def remove_accession_from_dggenome(cur, env, accession, version, genome_id):
     sys.stderr.write( "REMOVING ACCESSION " + accession + " FROM GENOME" + "\n")
-
     remove_accession_from_genome_path(cur, env, accession, version, genome_id)
     table = get_table('dggenome', env)
     cur.execute("""SELECT * FROM %s WHERE genome_id = %%s""" % table, (genome_id))
@@ -780,7 +869,7 @@ def remove_accession_from_dgtax(cur, env, tax_id, accession, version, all_data, 
         table = get_table('dgtax', env)
         cur.execute("""DELETE from %s where tax_id = %%s""" % table, (tax_id))
     else:
-        # release_date is always going to be stuck at the max because we don't save previous values
+        # modify_date is always going to be stuck at the max because we don't save previous values
         table = get_table('dgtax', env)
         cur.execute("""SELECT * from %s where tax_id = %%s""" % table, (tax_id))
         current_tax_value = cur.fetchone()

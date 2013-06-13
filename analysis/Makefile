@@ -81,18 +81,27 @@ genomeatlas: $(ACCESSION)_$(VERSION).genomeatlas.ps genomeatlas-thumbnail
 
 $(ACCESSION)_$(VERSION).genomeatlas.ps: $(ACCESSION)_$(VERSION).gbk.atlas.cfg
 	@echo "Running Genome Atlas eval"
+ifeq ($(VERSION), 0)
+else
 	$(eval LOGID=$(shell python $(BIN_DIR)db_log.py --start --job=$(JOB) --job_uuid=$(JOB_UUID) --jobstep=genomeatlas-run --accession=$(ACCESSION) --version=$(VERSION)))
-	$(shell $(BIN_DIR)atlas -f $(GENOME_DIR)$(ACCESSION)_$(VERSION).gbk -c $(GENOME_DIR)$(ACCESSION)_$(VERSION).gbk.atlas.cfg -o $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).genomeatlas.ps > /dev/null 2> /dev/null; if [ $$? -eq 0 ]; then python $(BIN_DIR)db_log.py --finish=success --logid=$(LOGID); else python $(BIN_DIR)db_log.py --finish=failure --logid=$(LOGID); fi)
+	$(shell $(BIN_DIR)atlas -f $(GENOME_DIR)$(ACCESSION)_$(VERSION).gbk -c $(GENOME_DIR)$(ACCESSION)_$(VERSION).gbk.atlas.cfg -o $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).genomeatlas.ps; if [ $$? -eq 0 ]; then python $(BIN_DIR)db_log.py --finish=success --logid=$(LOGID); else python $(BIN_DIR)db_log.py --finish=failure --logid=$(LOGID); fi)
+endif
 
 $(ACCESSION)_$(VERSION).gbk.atlas.cfg:
 	@echo "Generating atlas CFG file eval"
+ifeq ($(VERSION), 0)
+else
 	$(eval LOGID=$(shell python $(BIN_DIR)db_log.py --start --job=$(JOB) --job_uuid=$(JOB_UUID) --jobstep=genomeatlas-config --accession=$(ACCESSION) --version=$(VERSION)))
-	$(shell perl $(BIN_DIR)atlas_createConfig -ref $(GENOME_DIR)$(ACCESSION)_$(VERSION).gbk > /dev/null 2> /dev/null; if [ $$? -eq 0 ]; then python $(BIN_DIR)db_log.py --finish=success --logid=$(LOGID); else python $(BIN_DIR)db_log.py --finish=failure --logid=$(LOGID); fi)
+	$(shell perl $(BIN_DIR)atlas_createConfig -ref $(GENOME_DIR)$(ACCESSION)_$(VERSION).gbk; if [ $$? -eq 0 ]; then python $(BIN_DIR)db_log.py --finish=success --logid=$(LOGID); else python $(BIN_DIR)db_log.py --finish=failure --logid=$(LOGID); fi)
+endif
 
 genomeatlas-thumbnail: 
 	@echo "Creating thumbnails"
+ifeq ($(VERSION), 0)
+else
 	$(eval LOGID=$(shell python $(BIN_DIR)db_log.py --start --job=$(JOB) --job_uuid=$(JOB_UUID) --jobstep=genomeatlas-thumbnail --accession=$(ACCESSION) --version=$(VERSION)))
 	$(shell $(BIN_DIR)convert -rotate 90 -resize '425x300' -gravity West -crop '300x300+0+0' +repage $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).genomeatlas.ps $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).atlasthumb.png && scp $(OUTPUT_DIR)$(ACCESSION)_$(VERSION).atlasthumb-1.png root@gatlas:/home/genome_atlas/static/thumbnails/$(ACCESSION)_$(VERSION).atlasthumb.png; if [ $$? -eq 0 ]; then python $(BIN_DIR)db_log.py --finish=success --logid=$(LOGID); else python $(BIN_DIR)db_log.py --finish=failure --logid=$(LOGID); fi)
+endif
 
 populate-tax:
 	@echo "Running populate-tax"
