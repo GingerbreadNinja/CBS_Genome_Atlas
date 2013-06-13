@@ -1,38 +1,91 @@
-'''
-Created on Aug 27, 2012
-
-@author: Steven J. Otto
-'''
-
+import logging
 import ftplib
 import socket
-import sys
+import os
 from ftplib import FTP
 
-def getNCBIProkaryotesIndex():
-    getFile('ftp.ncbi.nlm.nih.gov', '', '', '', 180, 'genomes/GENOME_REPORTS/', 'prokaryotes.txt', 'ncbi/prokaryotes.txt')
-    return open('ncbi/prokaryotes.txt')
-
-def getFile(host, user, passwd, acct, timeout, dirname, filename, save_as):
-    """
-    Gets a single file from the ftp host specified, and saves it as 'saveas'
-    """
-    try:
-        ftp_connection = FTP(host=host)#, timeout=timeout)
-        ftp_connection.login(user, passwd, acct)
-        ftp_connection.cwd(dirname)
-        output = open(save_as, 'wb')
-        ftp_connection.retrbinary('RETR '+filename, output.write)
-        output.close()
-        ftp_connection.quit()
-    except socket.error:
-        #error in the underlying connection
-        print >> sys.stderr, 'FTPLIB: Error in underlying socket connection'
-        return 1
-    except ftplib.Error, e:
-        print >> sys.stderr, 'FTPLIB: Error during ftp transfer: ' + e.message 
-        return 1
-    return 0
+class FTP_Get():
     
+    def __init__(self, logger):
+        self.logger = logger
+        self.ftp_conn = None
     
+    def connect(self, host, user, passwd, acct, timeout):
+        try:
+            self.logger.info('Connecting to FTP host @ %s', host)
+            self.ftp_conn = FTP(host, timeout=timeout)
+            self.logger.info('Attempting to log in...')
+            self.ftp_conn.login(user, passwd, acct)
+        except socket.error, e:
+            self.logger.error('An error occurred connecting to FTP host @ %s', host)
+            self.logger.debug(str(e))
+            if(self.ftp_conn):
+                self.ftp_conn.quit()
+                self.ftp_conn = None
+            raise
+        except ftplib.Error, e:
+            self.logger.error('An FTP error occurred while connecting and logging in.')
+            self.logger.debug(str(e))
+            if(self.ftp_conn):
+                self.ftp_conn.quit()
+                self.ftp_conn = None
+            raise
+    
+    def close(self):
+        if(self.ftp_conn):
+            self.logger.info('Closing FTP connection')
+            self.ftp_conn.close()
+    
+    def cwd(self, dirname):
+        self.logger.info('Changing FTP working directory to %s', dirname)
+        self.ftp_conn.cwd(dirname)
+    
+    def getStream(self, filename):
+        self.logger.info('Building stream from FTP File %s', filename)
+        return self.ftp_conn.ntransfercmd('RETR '+filename)
         
+    def getFile(self, filename, saveas):
+        d = os.path.dirname(saveas)
+        if(d and not os.path.exists(d)): os.makedirs(d)
+        output = None
+        try:
+            self.logger.info('Opening destination file for FTP download: %s', saveas)
+            output = open(saveas, 'wb')
+            self.logger.info('Downloading file \'%s\' from FTP into \'%s\'', filename, saveas)
+            self.ftp_conn.retrbinary('RETR '+filename, output.write)
+            return open(saveas, 'rb')
+        finally:
+            if(output): output.close()
+    
+    @staticmethod
+    def getNCBIProkaryotesIndex():
+        ftp_get = FTP_Get()
+        ftp_get.connect('ftp.ncbi.nlm.nih.gov', '', '', '', 180)
+        ftp_get.cwd('genomes/GENOME_REPORTS/')
+        f = ftp_get.getFile('prokaryotes.txt', 'ncbi/prokaryotes.txt')
+        ftp_get.close()
+        return f
+    
+    @staticmethod
+    def getNCBISettings(settings):
+        logger = logging.getLogger(settings['logger']).getChild('FTP_Get')
+        if(not settings.get('ftp_ncbi')):
+            logger.warn('Attempting to get from NCBI but no settings found!')
+            return
+        ftps = settings['ftp_ncbi']
+        ftp_get = FTP_Get(logger)
+        #Opted to use get(key) instead of [key] to avoid Key Errors
+        ftp_get.connect(host=ftps.get('host'), user=ftps.get('user'), 
+                        passwd=ftps.get('passwd'), acct=ftps.get('acct'), 
+                        timeout=ftps.get('timeout'))
+        if(ftps.get('dirname')):
+            ftp_get.cwd(ftps['dirname'])
+        
+        try:
+            if(ftps.get('saveas')):
+                return ftp_get.getFile(ftps['filename'], ftps['saveas'])
+            else:
+                return ftp_get.getStream(ftps['filename'])
+        finally:
+            ftp_get.close()
+            

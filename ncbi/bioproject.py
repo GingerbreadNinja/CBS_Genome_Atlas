@@ -1,18 +1,16 @@
-'''
-Created on Aug 27, 2012
-
-@author: Steven J. Otto
-'''
 
 from datetime import datetime
 from csv import DictReader
-#from genbank_sync.ncbi import efetch_bioproject
+from efetch_manager import EFetchHandler
+from xml import sax
+import string
+from string import atoi
 
 class BioProject():
     
-    STATUS_NO_DATA = 'NO DATA'
-    STATUS_TRACES = 'SRA OR TRACES'
-    STATUS_SCAFFOLDS = 'SCAFFOLDS OR CONTIGS'
+    STATUS_NO_DATA = 'NO_DATA'
+    STATUS_TRACES = 'SRA_TRACES'
+    STATUS_SCAFFOLDS = 'SCAFFOLDS_CONTIGS'
     STATUS_COMPLETE = 'COMPLETE'
         
     def __init__(self, bioproject_id, bioproject_accession = "",
@@ -26,7 +24,7 @@ class BioProject():
         modifying the layout/structure of this list, so modification may be needed at some
         point in order to keep this working nicely. Most of the fields in here probably will not
         end up in the database anyway.
-        """
+        """        
         if(status == None): status = self.STATUS_NO_DATA
         self.bioproject_id = bioproject_id
         self.bioproject_accession = bioproject_accession
@@ -81,17 +79,25 @@ class CSVBioProjectParser():
                         _csv_release_date, _csv_modify_date, _csv_status, _csv_center]
     
     @staticmethod
-    def csv_parse_stream(parseable):
+    def csv_parse_stream(parseable, logger):
         """
         Parses a whole CSV stream of NCBI-BioProjects. If you want this to parse a string in memory,
         use stringio to wrap your string for processing.
         """
+        logger.info('Building Dict-Reader for parsing %s', parseable)
         reader = DictReader(parseable, dialect='excel-tab')#We do not pass the header_list because we expect it to already be in the file
         bioprojects = []
+        i = 0
         for row in reader:
             #parse a single row of information
-            bioproject = CSVBioProjectParser._csv_parse_row(row)
-            bioprojects.append(bioproject)        
+            try:
+                bioproject = CSVBioProjectParser._csv_parse_row(row)
+            except Exception, e:
+                logger.warn('Error parsing row %i from %s', i, parseable)
+                logger.debug(e)
+            bioprojects.append(bioproject)
+            i += 1
+        logger.info('Parsed %i bioprojects from %i rows', len(bioprojects), i)
         return bioprojects
     
     @staticmethod
@@ -170,8 +176,11 @@ class CSVBioProjectParser():
             insdc_plasmids = []
         
         if(wgs != None and wgs == '-'):
-            wgs = None
-            
+            wgs = []
+        if( wgs ):
+            start = wgs[0:4]
+            wgs = [ start + ( "0" * (12 - len(start)) ) ]
+
         if(scaffolds != None and scaffolds != '-'):
             scaffolds = int(scaffolds) #scaffolds is expected to be an integer number
         else:
@@ -219,22 +228,96 @@ class CSVBioProjectParser():
                           refseq_plasmids, insdc_plasmids, wgs, scaffolds, genes, proteins,
                           release_date, modify_date, status, center)
         
+class BioProjectSaxHandler(EFetchHandler, sax.ContentHandler):
+    '''
+    SAX-Handler for parsing XML-Bioprojects from NCBI-Entrez efetch service
+    '''
+    
+    def __init__(self, logger):
+        self.__logger = logger
+    
+    def get_db(self):
+        return 'bioproject'
+    
+    def get_request_dict(self):
+        return {'rettype':'xml', 'retmode':'full'}
+    
+    def handle(self, request_handle):
+        sax.parse(request_handle, self)
         
-def main():
-    """
-    This is mostly for testing
-    """
-    from genbank_sync import ftpget
-    ftpget.getFile('ftp.ncbi.nlm.nih.gov', '', '', '', 180, 'genomes/GENOME_REPORTS/', 'prokaryotes.txt', 'prokaryotes.txt')
-    csv_bioproject_stream = open('prokaryotes.txt')
-    bioprojects = CSVBioProjectParser.csv_parse_stream(csv_bioproject_stream)
-    csv_bioproject_stream.close()
-    printData = map(lambda bioproject: (bioproject.bioproject_id, bioproject.refseq_chromosomes), bioprojects)
-    print printData
+    __bioproject = None
+    __chrs = ''
+    __in_project = False
+    __in_assemblyrepliconset = False
+    __in_replicon = False
+    __accn_type = ''
     
-    complete = filter(lambda bioproject: bioproject.status==BioProject.STATUS_COMPLETE, bioprojects)
-    print len(complete)
+    def startElement(self, name, attrs):
+        if(name=='ArchiveID'):
+            uid = atoi(attrs['id'])
+            self.__bioproject = BioProject(bioproject_id=uid, bioproject_accession=attrs['accession'])
+            self.__logger.debug('Found ArchiveID and made bioproject(%i, %s)', self.__bioproject.bioproject_id, self.__bioproject.bioproject_accession)
+        elif(name=='Project'):
+            self.__in_project = True
+        elif(self.__in_project and name=='Organism'):
+            self.__bioproject.taxon_id = string.atoi(attrs['taxID'])
+        elif(name=='OrganismName'):
+            self.__chrs = ''
+        elif(name=='AssemblyRepliconSet'):
+            self.__in_assemblyrepliconset = True
+            self.__bioproject.insdc_chromosomes = []
+            self.__bioproject.insdc_plasmids = []
+            self.__bioproject.refseq_chromosomes = []
+            self.__bioproject.refseq_plasmids = []
+            self.__bioproject.wgs = []
+            self.__chrs = ''
+        elif(self.__in_assemblyrepliconset and name=='Replicon'):
+            self.__accn_type = ''
+            self.__in_replicon = True
+        elif(self.__in_replicon and name=='Type'):
+            self.__chrs = ''
+        elif(self.__in_replicon and name=='RSaccn'):
+            self.__chrs = ''
+        elif(self.__in_replicon and name=='GBaccn'):
+            self.__chrs = ''
+
+    def characters(self, content):
+        self.__chrs += content
     
+    def endElement(self, name):
+        if(name=='Project'):
+            self.__in_project = False
+        elif(name=='OrganismName'):
+            self.__bioproject.organism = self.__chrs
+        elif(name=='AssemblyRepliconSet'):
+            self.__in_assemblyrepliconset = False
+        elif(self.__in_assemblyrepliconset == True and name=='Assemblies'):
+            self.__bioproject.wgs = self.__chrs
+        elif(name=='Replicon'):
+            self.__in_replicon = False
+        elif(self.__in_replicon and name=='Type'):
+            self.__accn_type = self.__chrs 
+        elif(self.__in_replicon and name=='RSaccn'):
+            if(self.__accn_type=='eChromosome'):
+                self.__bioproject.refseq_chromosomes.append(self.__chrs)
+                self.__chrs = ''
+            elif(self.__accn_type=='ePlasmid'):
+                self.__bioproject.refseq_plasmids.append(self.__chrs)
+                self.__chrs = ''
+        elif(self.__in_replicon and name=='GBaccn'):
+            if(self.__accn_type=='eChromosome'):
+                self.__bioproject.insdc_chromosomes.append(self.__chrs)
+                self.__chrs = ''
+            elif(self.__accn_type=='ePlasmid'):
+                self.__bioproject.insdc_plasmids.append(self.__chrs)
+                self.__chrs = ''
+            elif(not self.__accn_type):
+                self.__bioproject.wgs.append(self.__chrs)
+                self.__chrs = ''
+        elif(name=='DocumentSummary'):
+            if(self.__bioproject):
+                self.__logger.debug('Finished parsing bioproject %i', self.__bioproject.bioproject_id)
+                self.append_result(self.__bioproject.bioproject_id, self.__bioproject)
+            self.__bioproject = None
     
-if __name__ == '__main__':
-    main()
+        
